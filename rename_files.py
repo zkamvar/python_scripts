@@ -5,18 +5,19 @@ path = ""
 pattern = "this is not a pattern we should see"
 word = "this is not a word we should see"
 replacement = ""
+verbose = False
 
 
 def usage():
 	print("\n%s Copyright (C) Zhian N. Kamvar 2013" % sys.argv[0])
 	print("Software comes with no warranty.")
-	print("Usage: python %s -d path/to/dir -p <pattern> -w <word> -r <replacement>" % sys.argv[0])
+	print("Usage: python %s -d path/to/dir -w <word> -r <replacement>" % sys.argv[0])
 	print("")
 	sys.exit(2)
 
-myopts, args = getopt.getopt(sys.argv[1:], "hd:p:w:r:", ["dir=", "pattern=", "word=", "replacement="])
+myopts, args = getopt.getopt(sys.argv[1:], "hvd:w:r:", ["dir=", "word=", "replacement="])
 
-if len(myopts) < 4:
+if len(myopts) < 3:
 	usage()
 
 
@@ -25,11 +26,10 @@ if len(myopts) < 4:
 for opt, arg in myopts:
 	if opt == "-h":
 		usage()
+	elif opt == "-v":
+		verbose = True
 	elif opt in ("-d", "--dir"):
 		path = arg
-		# print(arg)
-	elif opt in ("-p", "--pattern"):
-		pattern = arg
 		# print(arg)
 	elif opt in ("-w", "--word"):
 		word = arg
@@ -52,7 +52,7 @@ for opt, arg in myopts:
 		['this', 'was', 'a', 'file', 'txt'] 
 		['this_was_a_file', 'txt']
 		this_was_a_file.txt
-'''
+
 def split_and_replace(files, path, pattern, word, replacement):
 	counter = 0
 	for i in files:
@@ -76,6 +76,7 @@ def split_and_replace(files, path, pattern, word, replacement):
 			# print("From " + frompath + "\tTo: " + topath)
 		else:
 			print("Just us chickens!")
+'''
 
 def show_files(files):
 	for i in files:
@@ -84,10 +85,29 @@ def show_files(files):
 def replace_with_regex(files, word, replacement):
 	# show_files(files)
 	for i in files:
-		print(i + "\t" + str(re.match(re.escape(word), i)))
+		matchsticks = re.search(r'%s' % word, i)
+		if matchsticks:
+			oldstring = i
+			newstring = re.sub(r'%s' % word, r'%s' % replacement, i)
+			if verbose:
+				print("Old: %s\tNew: %s" % (oldstring, newstring))
+			os.rename(oldstring, newstring)
+		else:
+			if verbose:
+				print("Unchanged: %s" % i)
 
+old_dir = os.getcwd()
 files = sorted(os.listdir(path))
+
+os.chdir(path)
+if verbose:
+	print("Changing to directory %s" % os.getcwd())
+
 replace_with_regex(files, word, replacement)
+
+os.chdir(old_dir)
+if verbose:
+	print("Changing back to current directory %s" % os.getcwd())
 # split_and_replace(files, path, pattern, word, replacement)
 
 

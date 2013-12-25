@@ -12,6 +12,7 @@ def usage():
 	print("\n%s Copyright (C) Zhian N. Kamvar 2013" % sys.argv[0])
 	print("Software comes with no warranty.")
 	print("Usage: python %s -d path/to/dir -w <word> -r <replacement>" % sys.argv[0])
+	print("Optional: -v = verbose, -h = help and quit")
 	print("")
 	sys.exit(2)
 

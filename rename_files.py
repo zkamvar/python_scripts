@@ -40,6 +40,19 @@ for opt, arg in myopts:
 	else:
 		usage()
 
+'''
+	split_and_replace:
+	A function to replace a single word in a string separated by a given
+	pattern. 
+
+	example iteration:
+		this_is_a_file.txt 
+		['this', 'is', 'a', 'file.txt'] 
+		['this', 'is', 'a', 'file', 'txt']  
+		['this', 'was', 'a', 'file', 'txt'] 
+		['this_was_a_file', 'txt']
+		this_was_a_file.txt
+'''
 def split_and_replace(files, path, pattern, word, replacement):
 	counter = 0
 	for i in files:
@@ -68,8 +81,11 @@ def show_files(files):
 	for i in files:
 		print(i)
 
+def replace_with_regex(files, word, replacement):
+	show_files(files)
+
 files = sorted(os.listdir(path))
-show_files(files)
+replace_with_regex(files, word, replacement)
 # split_and_replace(files, path, pattern, word, replacement)
 
 

@@ -14,24 +14,30 @@ def usage():
 	print("")
 	sys.exit(2)
 
-myopts, args = getopt.getopt(sys.argv[1:], "d:p:w:r:")
+myopts, args = getopt.getopt(sys.argv[1:], "d:p:w:r:", ["dir=", "pattern=", "word=", "replacement="])
 
 if len(myopts) < 4:
 	usage()
 
 
+print(myopts)
+
 for opt, arg in myopts:
-	if opt == "-d":
+	if opt in ("-d", "--dir"):
 		path = arg
-	elif opt == "-p":
+		print(arg)
+	elif opt in ("-p", "--pattern"):
 		pattern = arg
-	elif opt == "-w":
+		print(arg)
+	elif opt in ("-w", "--word"):
 		word = arg
-	elif opt == "-r":
+		print(arg)
+	elif opt in ("-r", "--replacement"):
 		replacement = arg
+		print(arg)
 	else:
 		usage()
-
+'''
 for i in sorted(os.listdir(path)):
 	curr_count = counter
 	splitsville = i.split(pattern)
@@ -52,7 +58,7 @@ for i in sorted(os.listdir(path)):
 		os.rename(i, res)
 	else:
 		print("Just us chickens!")
-
+'''
 	
 
 

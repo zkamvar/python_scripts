@@ -82,7 +82,9 @@ def show_files(files):
 		print(i)
 
 def replace_with_regex(files, word, replacement):
-	show_files(files)
+	# show_files(files)
+	for i in files:
+		print(i + "\t" + str(re.match(re.escape(word), i)))
 
 files = sorted(os.listdir(path))
 replace_with_regex(files, word, replacement)

@@ -1,18 +1,15 @@
 #!/usr/bin/env python2.7
 
 import os, sys, getopt, re
-path = ""
-pattern = "this is not a pattern we should see"
-word = "this is not a word we should see"
-replacement = ""
-verbose = False
-
 
 def usage():
 	print("\n%s Copyright (C) Zhian N. Kamvar 2013" % sys.argv[0])
 	print("Software comes with no warranty.")
-	print("Usage: python %s -d path/to/dir -w <word> -r <replacement>" % sys.argv[0])
-	print("Optional: -v = verbose, -h = help and quit")
+	print("Usage:\n\tpython %s -d path/to/dir -w <word> -r <replacement>" % sys.argv[0])
+	print("Optional:")
+	print("\t-v = verbose")
+	print("\t-t = test regex, but don't change anything (implies -v)") 
+	print("\t-h = help and quit")
 	print("")
 	sys.exit(2)
 
@@ -29,7 +26,8 @@ def replace_with_regex(files, word, replacement):
 			newstring = re.sub(r'%s' % word, r'%s' % replacement, i)
 			if verbose:
 				print("Old: %s\tNew: %s" % (oldstring, newstring))
-			os.rename(oldstring, newstring)
+			if not test:
+				os.rename(oldstring, newstring)
 		else:
 			if verbose:
 				print("Unchanged: %s" % i)
@@ -74,7 +72,14 @@ def split_and_replace(files, path, pattern, word, replacement):
 
 if __name__ == '__main__':
 
-	myopts, args = getopt.getopt(sys.argv[1:], "hvd:w:r:", ["dir=", "word=", "replacement="])
+	path = ""
+	pattern = "this is not a pattern we should see"
+	word = "this is not a word we should see"
+	replacement = ""
+	verbose = False
+	test = False
+
+	myopts, args = getopt.getopt(sys.argv[1:], "hvtd:w:r:", ["dir=", "word=", "replacement="])
 
 	if len(myopts) < 3:
 		usage()
@@ -85,6 +90,9 @@ if __name__ == '__main__':
 		if opt == "-h":
 			usage()
 		elif opt == "-v":
+			verbose = True
+		elif opt == "-t":
+			test = True
 			verbose = True
 		elif opt in ("-d", "--dir"):
 			path = arg

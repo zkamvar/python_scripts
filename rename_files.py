@@ -16,30 +16,23 @@ def usage():
 	print("")
 	sys.exit(2)
 
-myopts, args = getopt.getopt(sys.argv[1:], "hvd:w:r:", ["dir=", "word=", "replacement="])
+def show_files(files):
+	for i in files:
+		print(i)
 
-if len(myopts) < 3:
-	usage()
-
-
-# print(myopts)
-
-for opt, arg in myopts:
-	if opt == "-h":
-		usage()
-	elif opt == "-v":
-		verbose = True
-	elif opt in ("-d", "--dir"):
-		path = arg
-		# print(arg)
-	elif opt in ("-w", "--word"):
-		word = arg
-		# print(arg)
-	elif opt in ("-r", "--replacement"):
-		replacement = arg
-		# print(arg)
-	else:
-		usage()
+def replace_with_regex(files, word, replacement):
+	# show_files(files)
+	for i in files:
+		matchsticks = re.search(r'%s' % word, i)
+		if matchsticks:
+			oldstring = i
+			newstring = re.sub(r'%s' % word, r'%s' % replacement, i)
+			if verbose:
+				print("Old: %s\tNew: %s" % (oldstring, newstring))
+			os.rename(oldstring, newstring)
+		else:
+			if verbose:
+				print("Unchanged: %s" % i)
 
 '''
 	split_and_replace:
@@ -79,37 +72,46 @@ def split_and_replace(files, path, pattern, word, replacement):
 			print("Just us chickens!")
 '''
 
-def show_files(files):
-	for i in files:
-		print(i)
+if __name__ == '__main__':
 
-def replace_with_regex(files, word, replacement):
-	# show_files(files)
-	for i in files:
-		matchsticks = re.search(r'%s' % word, i)
-		if matchsticks:
-			oldstring = i
-			newstring = re.sub(r'%s' % word, r'%s' % replacement, i)
-			if verbose:
-				print("Old: %s\tNew: %s" % (oldstring, newstring))
-			os.rename(oldstring, newstring)
+	myopts, args = getopt.getopt(sys.argv[1:], "hvd:w:r:", ["dir=", "word=", "replacement="])
+
+	if len(myopts) < 3:
+		usage()
+
+	# print(myopts)
+
+	for opt, arg in myopts:
+		if opt == "-h":
+			usage()
+		elif opt == "-v":
+			verbose = True
+		elif opt in ("-d", "--dir"):
+			path = arg
+			# print(arg)
+		elif opt in ("-w", "--word"):
+			word = arg
+			# print(arg)
+		elif opt in ("-r", "--replacement"):
+			replacement = arg
+			# print(arg)
 		else:
-			if verbose:
-				print("Unchanged: %s" % i)
+			usage()
 
-old_dir = os.getcwd()
-files = sorted(os.listdir(path))
 
-os.chdir(path)
-if verbose:
-	print("Changing to directory %s" % os.getcwd())
+	old_dir = os.getcwd()
+	files = sorted(os.listdir(path))
 
-replace_with_regex(files, word, replacement)
+	os.chdir(path)
+	if verbose:
+		print("Changing to directory %s" % os.getcwd())
 
-os.chdir(old_dir)
-if verbose:
-	print("Changing back to current directory %s" % os.getcwd())
-# split_and_replace(files, path, pattern, word, replacement)
+	replace_with_regex(files, word, replacement)
+
+	os.chdir(old_dir)
+	if verbose:
+		print("Changing back to current directory %s" % os.getcwd())
+	# split_and_replace(files, path, pattern, word, replacement)
 
 
 

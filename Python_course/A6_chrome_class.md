@@ -37,19 +37,17 @@ fire up R and install the ggplot2 library by running the following:
 
 <pre>
 R
-....
 > install.packages("ggplot2")
-....(follow instructions, say "yes" if asked questions)
-....
->quit(save = "no")
+> # (follow instructions, say "yes" if asked questions)
+> quit(save = "no")
 </pre>
 
 Now we can run the script in combination with a couple of complex Rscript one-liners, to produce plots called <tt>trans_rate.png</tt> and <tt>snpsper1000bp.png</tt>:
 
-<pre>
-cat /raid1/teaching/data/python/SNP_Analysis2.cvs | ./snp_count.py | Rscript -e 'library(ggplot2); data <- read.table("stdin", header = F, col.names = c("Chr", "pos", "snpsper1000bp", "trans_rate"), sep = "\\t"); ggplot(data) + geom_line(mapping = aes(x = pos, y = trans_rate)) + facet_grid(Chr ~ .); ggsave("trans_rate.png")'
-cat /raid1/teaching/data/python/SNP_Analysis2.cvs | ./snp_count.py | Rscript -e 'library(ggplot2); data <- read.table("stdin", header = F, col.names = c("Chr", "pos", "snpsper1000bp", "trans_rate"), sep = "\\t"); ggplot(data) + geom_line(mapping = aes(x = pos, y = snpsper1000bp)) + facet_grid(Chr ~ .); ggsave("snpsper1000bp.png")'
-</pre>
+
+    cat /raid1/teaching/data/python/SNP_Analysis2.cvs | ./snp_count.py | Rscript -e 'library(ggplot2); data <- read.table("stdin", header = F, col.names = c("Chr", "pos", "snpsper1000bp", "trans_rate"), sep = "\\t"); ggplot(data) + geom_line(mapping = aes(x = pos, y = trans_rate)) + facet_grid(Chr ~ .); ggsave("trans_rate.png")'
+    cat /raid1/teaching/data/python/SNP_Analysis2.cvs | ./snp_count.py | Rscript -e 'library(ggplot2); data <- read.table("stdin", header = F, col.names = c("Chr", "pos", "snpsper1000bp", "trans_rate"), sep = "\\t"); ggplot(data) + geom_line(mapping = aes(x = pos, y = snpsper1000bp)) + facet_grid(Chr ~ .); ggsave("snpsper1000bp.png")'
+
 </p>
 
 Now: here's a question we might ask about these results: are they really a "sliding window" analysis over the Chromosome? If not, do you think they are 

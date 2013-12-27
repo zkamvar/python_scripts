@@ -21,9 +21,13 @@ def usage():
 	sys.exit(2)
 
 def find_function_def(line):
-	line = re.findall(r'\s*[A-Za-z0-9\._]+?\s*\<\-\s*function', line)
-	if len(line) > 0:
-		line = re.split(r'\s*\<\-\s*', line[0])[0]
+	arrow = re.findall(r'^\s*[A-Za-z0-9\._]+?\s*\<\-\s*function', line)
+	equal = re.findall(r'^\s*[A-Za-z0-9\._]+?\s*=\s*function', line)
+	if len(arrow) > 0:
+		line = re.split(r'\s*\<\-\s*', arrow[0])[0]
+		return line
+	elif len(equal) > 0:
+		line = re.split(r'\s*=\s*', equal[0])[0]
 		return line
 	else:
 		return False
@@ -87,8 +91,6 @@ if __name__ == '__main__':
 			is_function = find_function_def(line)
 			if is_function:
 				print("\n{ (| %s\n- -" % is_function)
-			# open_curly_brace -= len(re.findall(r'\}', line))
-			# open_parens -= len(re.findall(r'\)', line))
 			print("%d %d| %s" % (open_curly_brace, open_parens, line))
 
 	

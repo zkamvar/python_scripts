@@ -4,9 +4,9 @@ This assignment will be extension of our class example, that provides significan
 somewhat tricky) coding.
 
 First, you should implement the code we discussed in class (see the notes, pages 86-93), and test it out with:
-<pre> 
-cat /raid1/teaching/data/python/SNP_Analysis2.cvs | ./snp_count.py
-</pre>
+ 
+    cat /raid1/teaching/data/python/SNP_Analysis2.cvs | ./snp_count.py
+
 
 Next, you should add a method to the Chromosome class called <tt>**print_stats_on_snps_window**</tt>, which will
 take one parameter (aside from self): a list containing integers called <tt>snp_positions</tt>, which contain keys you can assume are in the <tt>self.pos_to_snps</tt>

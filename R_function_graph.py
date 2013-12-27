@@ -42,16 +42,28 @@ def find_function_def(line):
 
 #==============================================================================#
 # The following three functions count open and closed braces. This is important
-# for determining when functions end as they can wrap several lines.
+# for determining when functions end as they can wrap several lines. Escape
+# are detected and not counted.
 #==============================================================================#
 def open_braces(line):
-	curly = len(re.findall(r'\{', line))
-	parens = len(re.findall(r'\(', line))
+	curly = len(re.findall(r'\{', line)) - escaped_braces(line, '{')
+	parens = len(re.findall(r'\(', line)) - escaped_braces(line, '(')
 	return [curly, parens]
 def closed_braces(line):
-	curly = len(re.findall(r'\}', line))
-	parens = len(re.findall(r'\)', line))
+	curly = len(re.findall(r'\}', line)) - escaped_braces(line, '}')
+	parens = len(re.findall(r'\)', line)) - escaped_braces(line, ')')
 	return [curly, parens]
+def escaped_braces(line, brace):
+	if brace == '{':
+		pattern = r'\\\{|\[\{\]'
+	elif brace == '(':
+		pattern = r'\\\(|\[\(\]'
+	elif brace == '}':
+		pattern = r'\\\}|\[\}\]'
+	elif brace == ')':
+		pattern = r'\\\)|\[\)\]'
+	escaped = len(re.findall(pattern, line))
+	return escaped
 def braces_updater(line):
 	ob = open_braces(line)
 	cb = closed_braces(line)
@@ -106,7 +118,7 @@ if __name__ == '__main__':
 		elif opt == "-c":
 			cfunk = True
 		elif opt in ("-d", "--directory"):
-			package_directory = os.path.abspath(arg)
+			package_directory = os.path.abspath(os.path.expanduser(arg))
 		else:
 			usage()
 

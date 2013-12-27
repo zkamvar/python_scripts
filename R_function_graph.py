@@ -28,6 +28,12 @@ def find_function_def(line):
 	else:
 		return False
 
+def open_braces(line):
+	curly = len(re.findall(r'\{', line)) - len(re.findall(r'\}', line))
+	parens = len(re.findall(r'\(', line)) - len(re.findall(r'\)', line))
+	return [curly, parens]
+
+
 if __name__ == '__main__':
 
 	verbose = False
@@ -75,13 +81,14 @@ if __name__ == '__main__':
 			line = line.strip()
 			if re.match(r'^\s*#', line) or re.match(r'^\s*$', line):
 				continue
-			open_curly_brace += len(re.findall(r'\{', line))
-			open_parens += len(re.findall(r'\(', line))
+			brace_update = open_braces(line)
+			open_curly_brace += brace_update[0]
+			open_parens += brace_update[1]
 			is_function = find_function_def(line)
 			if is_function:
 				print("\n{ (| %s\n- -" % is_function)
-			open_curly_brace -= len(re.findall(r'\}', line))
-			open_parens -= len(re.findall(r'\)', line))
+			# open_curly_brace -= len(re.findall(r'\}', line))
+			# open_parens -= len(re.findall(r'\)', line))
 			print("%d %d| %s" % (open_curly_brace, open_parens, line))
 
 	

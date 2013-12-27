@@ -1,0 +1,4177 @@
+
+File:	bruvo.r ==============================================================>
+
+{ (| bruvo.dist
+- -
+1 0| bruvo.dist <- function(pop, replen=c(1)){
+2 0| if (pop@type != "codom" | all(is.na(unlist(lapply(pop@all.names, as.numeric))))){
+FUNK:	all
+FUNK:	is.na
+FUNK:	unlist
+FUNK:	lapply
+2 0| stop("\nThis dataset does not appear to be microsatellite data. Bruvo's Distance can only be applied for true microsatellites.")
+1 0| }
+2 0| if (length(replen) != length(pop@loc.names)){
+FUNK:	length
+FUNK:	length
+2 0| replen <- vapply(pop@all.names, function(x) guesslengths(as.numeric(x)), 1)
+FUNK:	vapply
+FUNK:	guesslengths
+FUNK:	as.numeric
+2 0| warning("\n\nRepeat length vector for loci is not equal to the number of loci represented.\nEstimating repeat lengths from data:\n", immediate.=TRUE)
+2 0| cat(replen,"\n\n")
+1 0| }
+1 0| bruvomat  <- new('bruvomat', pop, replen)
+FUNK:	new
+1 0| funk_call <- match.call()
+FUNK:	match.call
+1 0| dist.mat  <- bruvos_distance(bruvomat, funk_call = funk_call)
+FUNK:	bruvos_distance
+1 0| return(dist.mat)
+0 0| }
+
+{ (| bruvo.boot
+- -
+0 1| bruvo.boot <- function(pop, replen = c(1), sample = 100, tree = "upgma",
+1 0| showtree = TRUE, cutoff = NULL, quiet = FALSE, ...) {
+2 0| if (pop@type != "codom" | all(is.na(unlist(lapply(pop@all.names, as.numeric))))){
+FUNK:	all
+FUNK:	is.na
+FUNK:	unlist
+FUNK:	lapply
+2 0| stop("\nThis dataset does not appear to be microsatellite data. Bruvo's Distance can only be applied for true microsatellites.")
+1 0| }
+2 0| if (length(replen) != length(pop@loc.names)){
+FUNK:	length
+FUNK:	length
+2 0| replen <- vapply(pop@all.names, function(x) guesslengths(as.numeric(x)), 1)
+FUNK:	vapply
+FUNK:	guesslengths
+FUNK:	as.numeric
+2 0| warning("\n\nRepeat length vector for loci is not equal to the number of loci represented.\nEstimating repeat lengths from data:\n", immediate.=TRUE)
+2 0| cat(replen,"\n\n")
+1 0| }
+1 0| bootgen <- new('bruvomat', pop, replen)
+FUNK:	new
+2 0| if (tree == "upgma"){
+2 0| root <- TRUE
+2 0| newfunk <- match.fun(upgma)
+FUNK:	match.fun
+2 0| } else if (tree == "nj"){
+2 0| root <- FALSE
+2 0| newfunk <- match.fun(nj)
+FUNK:	match.fun
+1 0| }
+1 0| tre <- newfunk(bruvos_distance(bootgen))
+FUNK:	newfunk
+FUNK:	bruvos_distance
+2 0| if (any (tre$edge.length < 0)){
+2 0| warning("Some branch lengths of the tree are negative. Normalizing branches according to Kuhner and Felsenstein (1994)", immediate.=TRUE)
+2 0| tre <- fix_negative_branch(tre)
+FUNK:	fix_negative_branch
+1 0| }
+2 0| if (quiet == FALSE){
+2 0| cat("\nBootstrapping...\n")
+2 1| cat("(note: calculation of node labels can take a while even after")
+2 0| cat(" the progress bar is full)\n\n")
+1 0| }
+
+{ (| bootfun
+- -
+2 0| bootfun <- function(x){
+2 0| return(newfunk(bruvos_distance(x)))
+FUNK:	newfunk
+FUNK:	bruvos_distance
+1 0| }
+1 1| bp <- boot.phylo(tre, bootgen, FUN = bootfun, B = sample, quiet = quiet,
+FUNK:	boot.phylo
+1 0| rooted = root, ...)
+1 0| tre$node.labels <- round(((bp / sample)*100))
+FUNK:	round
+2 0| if (!is.null(cutoff)){
+FUNK:	is.null
+3 0| if (cutoff < 1 | cutoff > 100){
+3 0| cat("Cutoff value must be between 0 and 100.\n")
+3 0| cutoff <- as.numeric(readline(prompt = "Choose a new cutoff value between 0 and 100:\n"))
+FUNK:	as.numeric
+FUNK:	readline
+2 0| }
+2 0| tre$node.labels[tre$node.labels < cutoff] <- NA
+1 0| }
+1 0| tre$tip.label <- pop@ind.names
+2 0| if(showtree == TRUE){
+2 0| plot(tre, show.node.label=TRUE)
+FUNK:	plot
+1 0| }
+2 0| if(tree=="upgma"){
+2 0| axisPhylo(3)
+FUNK:	axisPhylo
+2 0| } else if (tree == "nj"){
+2 0| add.scale.bar(lwd = 5)
+FUNK:	add.scale.bar
+1 0| }
+1 0| return(tre)
+0 0| }
+
+{ (| bruvo.msn
+- -
+0 1| bruvo.msn <- function (pop, replen = c(1), palette = topo.colors,
+0 1| sublist = "All", blacklist = NULL, vertex.label = "MLG",
+0 1| gscale = TRUE, glim = c(0,0.8), gadj = 3, gweight = 1,
+1 0| wscale = TRUE, ...){
+1 0| gadj <- ifelse(gweight == 1, gadj, -gadj)
+FUNK:	ifelse
+1 0| pop$other$mlg.vec <- mlg.vector(pop)
+FUNK:	mlg.vector
+2 0| if (is.null(pop(pop)) | length(pop@pop.names) == 1){
+FUNK:	is.null
+FUNK:	pop
+FUNK:	length
+2 2| return(singlepop_msn(pop, vertex.label, replen = replen, gscale = gscale,
+FUNK:	singlepop_msn
+2 2| glim = glim, gadj = gadj, wscale = wscale,
+2 0| palette = palette))
+1 0| }
+2 0| if (sublist[1] != "ALL" | !is.null(blacklist)){
+FUNK:	is.null
+2 0| pop <- popsub(pop, sublist, blacklist)
+FUNK:	popsub
+1 0| }
+2 0| if (is.null(pop(pop)) | length(pop@pop.names) == 1){
+FUNK:	is.null
+FUNK:	pop
+FUNK:	length
+2 2| return(singlepop_msn(pop, vertex.label, replen = replen, gscale = gscale,
+FUNK:	singlepop_msn
+2 2| glim = glim, gadj = gadj, wscale = wscale,
+2 0| palette = palette))
+1 0| }
+1 0| mlg.cp <- mlg.crosspop(pop, mlgsub=1:mlg(pop, quiet=TRUE), quiet=TRUE)
+FUNK:	mlg.crosspop
+FUNK:	mlg
+1 0| names(mlg.cp) <- paste0("MLG.", sort(unique(pop$other$mlg.vec)))
+FUNK:	names
+FUNK:	paste0
+FUNK:	sort
+FUNK:	unique
+1 0| cpop <- pop[.clonecorrector(pop), ]
+FUNK:	.clonecorrector
+1 0| mlg.number <- table(pop$other$mlg.vec)[rank(cpop$other$mlg.vec)]
+FUNK:	table
+FUNK:	rank
+1 0| mlg.cp     <- mlg.cp[rank(cpop$other$mlg.vec)]
+FUNK:	rank
+1 0| bclone     <- bruvo.dist(cpop, replen=replen)
+FUNK:	bruvo.dist
+1 0| g   <- graph.adjacency(as.matrix(bclone), weighted = TRUE, mode = "undirected")
+FUNK:	graph.adjacency
+FUNK:	as.matrix
+1 0| mst <- minimum.spanning.tree(g, algorithm = "prim", weights = E(g)$weight)
+FUNK:	minimum.spanning.tree
+FUNK:	E
+2 0| if (!is.na(vertex.label[1]) & length(vertex.label) == 1){
+FUNK:	is.na
+FUNK:	length
+3 0| if (toupper(vertex.label) == "MLG"){
+FUNK:	toupper
+3 0| vertex.label <- paste0("MLG.", cpop$other$mlg.vec)
+FUNK:	paste0
+3 0| } else if (toupper(vertex.label) == "INDS"){
+FUNK:	toupper
+3 0| vertex.label <- cpop$ind.names
+2 0| }
+1 0| }
+1 0| palette <- match.fun(palette)
+FUNK:	match.fun
+1 0| color   <- palette(length(pop@pop.names))
+FUNK:	palette
+FUNK:	length
+2 0| if(gscale == TRUE){
+2 2| E(mst)$color <- gray(adjustcurve(E(mst)$weight, glim=glim, correction=gadj,
+FUNK:	E
+FUNK:	gray
+FUNK:	adjustcurve
+FUNK:	E
+2 0| show=FALSE))
+2 0| } else {
+2 0| E(mst)$color <- rep("black", length(E(mst)$weight))
+FUNK:	E
+FUNK:	rep
+FUNK:	length
+FUNK:	E
+1 0| }
+1 0| edgewidth <- 2
+2 0| if (wscale == TRUE){
+2 0| edgewidth <- 1/(E(mst)$weight)
+FUNK:	E
+3 0| if (any(E(mst)$weight < 0.08)){
+FUNK:	any
+FUNK:	E
+3 0| edgewidth <- 1/(E(mst)$weight + 0.08)
+FUNK:	E
+2 0| }
+1 0| }
+1 0| mlg.color <- lapply(mlg.cp, function(x) color[pop@pop.names %in% names(x)])
+FUNK:	lapply
+FUNK:	names
+1 1| plot.igraph(mst, edge.width = edgewidth, edge.color = E(mst)$color,
+FUNK:	plot.igraph
+FUNK:	E
+1 1| vertex.size = mlg.number*3, vertex.shape = "pie", vertex.pie = mlg.cp,
+1 0| vertex.pie.color = mlg.color, vertex.label = vertex.label, ...)
+1 1| legend(-1.55, 1, bty = "n", cex = 0.75, legend = pop$pop.names,
+FUNK:	legend
+1 0| title = "Populations", fill = color, border = NULL)
+1 0| E(mst)$width     <- edgewidth
+FUNK:	E
+1 0| V(mst)$size      <- mlg.number
+FUNK:	V
+1 0| V(mst)$shape     <- "pie"
+FUNK:	V
+1 0| V(mst)$pie       <- mlg.cp
+FUNK:	V
+1 0| V(mst)$pie.color <- mlg.color
+FUNK:	V
+1 0| V(mst)$label     <- vertex.label
+FUNK:	V
+1 0| return(list(graph = mst, populations = pop$pop.names, colors = color))
+FUNK:	list
+0 0| }
+
+File:	bruvoclass.r =========================================================>
+0 1| setClass(
+FUNK:	setClass
+0 1| Class = "bruvomat",
+0 2| representation = representation(
+FUNK:	representation
+0 2| mat = "matrix",
+0 2| replen = "numeric",
+0 2| ploidy = "numeric",
+0 2| ind.names = "character"
+0 1| ),
+0 2| prototype = prototype(
+FUNK:	prototype
+0 2| mat = matrix(ncol = 0, nrow = 0),
+FUNK:	matrix
+0 2| replen = 0,
+0 2| ploidy = 2,
+0 2| ind.names = "none"
+0 1| )
+0 0| )
+0 1| setMethod(
+FUNK:	setMethod
+0 1| f = "initialize",
+0 1| signature = "bruvomat",
+
+{ (| definition
+- -
+1 1| definition = function(.Object, gen, replen){
+1 1| if (missing(gen)) gen <- new("genind")
+FUNK:	missing
+FUNK:	new
+2 1| if (missing(replen)){
+FUNK:	missing
+2 1| replen <- vapply(gen@all.names, function(y) guesslengths(as.numeric(y)), 1)
+FUNK:	vapply
+FUNK:	guesslengths
+FUNK:	as.numeric
+1 1| }
+1 1| ploid <- ploidy(gen)
+FUNK:	ploidy
+2 1| if (any(!gen@tab %in% c((0:ploid)/ploid, NA))){
+FUNK:	any
+2 1| gen@tab[!gen@tab %in% c((0:ploid)/ploid, NA)] <- NA
+1 1| }
+1 1| popcols <- ploid*nLoc(gen)
+FUNK:	nLoc
+2 1| if (!any(is.na(gen@tab)) & any(rowSums(gen@tab, na.rm=TRUE) < nLoc(gen))){
+FUNK:	any
+FUNK:	is.na
+FUNK:	any
+FUNK:	rowSums
+FUNK:	nLoc
+2 1| mat1 <- as.matrix.data.frame(genind2df(gen, sep="/", usepop=FALSE))
+FUNK:	as.matrix.data.frame
+FUNK:	genind2df
+2 1| mat1[mat1 %in% c("", NA)] <- paste(rep(0, ploid), collapse="/")
+FUNK:	paste
+FUNK:	rep
+2 1| mat2 <- apply(mat1, 1, strsplit, "/")
+FUNK:	apply
+2 1| mat3 <- apply(as.matrix(t(sapply(mat2, unlist))), 2, as.numeric)
+FUNK:	apply
+FUNK:	as.matrix
+FUNK:	t
+FUNK:	sapply
+2 1| vec1 <- suppressWarnings(as.numeric(unlist(mat3)))
+FUNK:	suppressWarnings
+FUNK:	as.numeric
+FUNK:	unlist
+2 1| pop  <- matrix(vec1, nrow=nInd(gen), ncol=popcols)
+FUNK:	matrix
+FUNK:	nInd
+2 1| } else {
+2 1| popdf <- genind2df(gen, oneColPerAll=TRUE, usepop=FALSE)
+FUNK:	genind2df
+2 1| mat1  <- as.matrix.data.frame(popdf)
+FUNK:	as.matrix.data.frame
+2 1| pop   <- suppressWarnings(matrix(as.numeric(mat1), ncol=popcols))
+FUNK:	suppressWarnings
+FUNK:	matrix
+FUNK:	as.numeric
+1 1| }
+1 1| slot(.Object, "mat")       <- pop
+FUNK:	slot
+1 1| slot(.Object, "replen")    <- replen
+FUNK:	slot
+1 1| slot(.Object, "ploidy")    <- ploid
+FUNK:	slot
+1 1| slot(.Object, "ind.names") <- indNames(gen)
+FUNK:	slot
+FUNK:	indNames
+1 1| return(.Object)
+0 1| }
+0 0| )
+0 1| setMethod(
+FUNK:	setMethod
+0 1| f = "dim",
+0 1| signature(x = "bruvomat"),
+FUNK:	signature
+
+{ (| definition
+- -
+1 1| definition = function(x){
+1 1| return(c(nrow(x@mat), ncol(x@mat)/x@ploidy))
+FUNK:	nrow
+FUNK:	ncol
+0 1| }
+0 0| )
+0 1| setMethod(
+FUNK:	setMethod
+0 1| f = "[",
+0 1| signature(x = "bruvomat"),
+FUNK:	signature
+
+{ (| definition
+- -
+1 1| definition = function(x, i, j, ..., drop = FALSE){
+1 1| if (missing(i)) i <- TRUE
+FUNK:	missing
+1 1| if (missing(j)) j <- TRUE
+FUNK:	missing
+1 1| x@replen <- x@replen[j]
+1 1| x@ind.names <- x@ind.names[i]
+1 1| cols <- rep(1:ncol(x), each = x@ploidy)
+FUNK:	rep
+FUNK:	ncol
+1 1| replacement <- vapply(j, function(ind) which(cols == ind), 1:x@ploidy)
+FUNK:	vapply
+FUNK:	which
+1 1| x@mat <- x@mat[i, as.vector(replacement), drop = FALSE]
+FUNK:	as.vector
+1 1| return(x)
+0 1| }
+0 0| )
+
+File:	data_subset.r ========================================================>
+
+{ (| clonecorrect
+- -
+0 1| clonecorrect <- function(pop, hier=c(1), dfname="population_hierarchy",
+1 0| combine = FALSE, keep = 1){
+1 0| clonecall <- match.call()$pop
+FUNK:	match.call
+2 0| if(!is.genind(pop)){
+FUNK:	is.genind
+2 0| stop(paste(paste(substitute(pop), collapse=""), "is not a genind object.\n"))
+FUNK:	paste
+FUNK:	paste
+FUNK:	substitute
+1 0| }
+1 0| popcall <- pop@call
+2 0| if (is.na(hier[1])){
+FUNK:	is.na
+2 0| return(pop[.clonecorrector(pop), ])
+FUNK:	.clonecorrector
+1 0| }
+2 0| if(is.null(other(pop)[[dfname]])){
+FUNK:	is.null
+FUNK:	other
+3 0| if(length(hier) == 1 & hier[1] == 1){
+FUNK:	length
+4 0| if(length(levels(pop(pop))) == 1 | is.null(pop(pop))){
+FUNK:	length
+FUNK:	levels
+FUNK:	pop
+FUNK:	is.null
+FUNK:	pop
+4 0| pop <- pop[.clonecorrector(pop), ]
+FUNK:	.clonecorrector
+4 0| return(pop)
+3 0| }
+4 0| else if(length(levels(pop(pop))) > 1){
+FUNK:	length
+FUNK:	levels
+FUNK:	pop
+4 0| other(pop)[[dfname]] <- as.data.frame(list(Pop = as.character(pop(pop))))
+FUNK:	other
+FUNK:	as.data.frame
+FUNK:	list
+FUNK:	as.character
+FUNK:	pop
+4 2| warning(paste("There is no data frame in ",
+FUNK:	paste
+4 2| paste(substitute(clonecall), collapse=""),
+FUNK:	paste
+FUNK:	substitute
+4 2| "@other called ",dfname,
+4 0| ".\nOne is being created from the population factor.", sep=""))
+3 0| }
+2 0| }
+3 0| else{
+3 2| stop(paste("There is no data frame in ",paste(substitute(clonecall), collapse=""),
+FUNK:	paste
+FUNK:	paste
+FUNK:	substitute
+3 0| "@other called ",dfname,".\n", sep=""))
+2 0| }
+1 0| }
+2 0| if(all(pop@ind.names == "")){
+FUNK:	all
+2 0| pop@ind.names <- as.character(1:nInd(pop))
+FUNK:	as.character
+FUNK:	nInd
+1 0| }
+1 0| pop <- splitcombine(pop, method=2, dfname=dfname, hier=hier)
+FUNK:	splitcombine
+1 0| cpop <- length(pop$pop.names)
+FUNK:	length
+
+{ (| corWrecked
+- -
+2 0| corWrecked <- function(x, pop){
+2 0| subbed <- popsub(pop, x) # population to be...corrected.
+FUNK:	popsub
+2 0| subbed <- subbed[.clonecorrector(subbed), ]
+FUNK:	.clonecorrector
+2 0| return(which(pop@ind.names %in% subbed@ind.names))
+FUNK:	which
+1 0| }
+1 0| ccpop <- unlist(lapply(1:cpop, corWrecked, pop))
+FUNK:	unlist
+FUNK:	lapply
+1 0| pop <- pop[ccpop, ]
+2 0| if(!combine){
+3 0| if(length(keep) > 1){
+FUNK:	length
+3 0| pop <- splitcombine(pop, hier=hier[keep], method=2, dfname=dfname)
+FUNK:	splitcombine
+2 0| }
+3 0| else{
+3 0| pop(pop) <- pop$other[[dfname]][[hier[keep]]]
+FUNK:	pop
+2 0| }
+2 0| names(pop$pop.names) <- levels(pop$pop)
+FUNK:	names
+FUNK:	levels
+1 0| }
+1 0| pop@call <- popcall
+1 0| return(pop)
+0 0| }
+
+{ (| popsub
+- -
+1 0| popsub <- function(pop, sublist="ALL", blacklist=NULL, mat=NULL, drop=TRUE){
+2 0| if (!is.genind(pop)){
+FUNK:	is.genind
+2 0| stop("pop.subset requires a genind object\n")
+1 0| }
+2 0| if (is.null(pop(pop))){
+FUNK:	is.null
+FUNK:	pop
+2 0| if(sublist[1] != "ALL")
+2 0| warning("No population structure. Subsetting not taking place.")
+2 0| return(pop)
+1 0| }
+2 0| if(toupper(sublist[1]) == "ALL"){
+FUNK:	toupper
+3 0| if (is.null(blacklist)){
+FUNK:	is.null
+3 0| return(pop)
+2 0| }
+3 0| else {
+3 0| sublist <- pop@pop.names
+2 0| }
+1 0| }
+2 0| if (is.null(names(pop@pop.names))){
+FUNK:	is.null
+FUNK:	names
+3 0| if (length(pop@pop.names) == length(levels(pop@pop))){
+FUNK:	length
+FUNK:	length
+FUNK:	levels
+3 0| names(pop@pop.names) <- levels(pop@pop)
+FUNK:	names
+FUNK:	levels
+2 0| }
+3 0| else{
+3 0| stop("Population names do not match population factors.")
+2 0| }
+1 0| }
+2 0| if (!is.null(blacklist)){
+FUNK:	is.null
+3 0| if(is.numeric(sublist) & is.numeric(blacklist) | class(sublist) == class(blacklist)){
+FUNK:	is.numeric
+FUNK:	is.numeric
+FUNK:	class
+FUNK:	class
+3 0| sublist <- sublist[!sublist %in% blacklist]
+2 0| }
+3 0| else if(is.numeric(sublist) & class(blacklist) == "character"){
+FUNK:	is.numeric
+FUNK:	class
+3 0| sublist <- sublist[sublist %in% which(!pop@pop.names %in% blacklist)]
+FUNK:	which
+2 0| }
+3 0| else{
+4 0| if(all(pop@pop.names %in% sublist)){
+FUNK:	all
+4 0| sublist <- sublist[-blacklist]
+3 0| }
+4 0| else{
+4 0| warning("Blacklist is numeric. Interpreting blacklist as the index of the population in the total data set.")
+4 0| sublist <- sublist[!sublist %in% pop@pop.names[blacklist]]
+3 0| }
+2 0| }
+1 0| }
+2 0| if(!is.null(mat)){
+FUNK:	is.null
+2 0| mat <- mat[sublist, , drop=FALSE]
+2 0| return(mat[, which(colSums(mat) > 0), drop=FALSE])
+FUNK:	which
+FUNK:	colSums
+1 0| }
+2 0| else{
+2 0| if (is.numeric(sublist))
+FUNK:	is.numeric
+2 0| sublist <- names(pop@pop.names[sublist])
+FUNK:	names
+2 0| else
+2 0| sublist <- names(pop@pop.names[pop@pop.names %in% sublist])
+FUNK:	names
+2 0| sublist <- (1:length(pop@pop))[pop@pop %in% sublist]
+FUNK:	length
+3 0| if(is.na(sublist[1])){
+FUNK:	is.na
+3 0| warning("All items present in Sublist are also present in the Blacklist.\nSubsetting not taking place.")
+3 0| return(pop)
+2 0| }
+2 0| pop <- pop[sublist, ,drop=drop]
+2 0| pop@call <- match.call()
+FUNK:	match.call
+2 0| return(pop)
+1 0| }
+0 0| }
+
+{ (| missingno
+- -
+1 0| missingno <- function(pop, type = "loci", cutoff = 0.05, quiet=FALSE){
+2 0| if(sum(is.na(pop@tab)) > 0){
+FUNK:	sum
+FUNK:	is.na
+3 0| if (toupper(type)=="LOCI"){
+FUNK:	toupper
+3 0| naloci <- percent_missing(pop, type=type, cutoff=cutoff)
+FUNK:	percent_missing
+4 0| if(quiet != TRUE){
+5 0| if(all(naloci < 0)){
+FUNK:	all
+5 0| remloc <- pop@loc.names[which(cumsum(pop@loc.nall) %in% -naloci)]
+FUNK:	which
+FUNK:	cumsum
+5 0| cat("\n Found", sum(is.na(pop@tab)),"missing values.")
+FUNK:	sum
+FUNK:	is.na
+5 0| loci <- paste(length(remloc), ifelse(length(remloc) == 1, "locus", "loci"))
+FUNK:	paste
+FUNK:	length
+FUNK:	ifelse
+FUNK:	length
+5 0| cat("\n",loci,"contained missing values greater than",paste(cutoff*100,"%.",sep=""))
+FUNK:	paste
+5 0| cat("\n Removing",loci,":", remloc,"\n", fill = 80)
+4 0| }
+5 0| else{
+5 0| cat("\n No loci with missing values above",paste(cutoff*100,"%",sep=""),"found.\n")
+FUNK:	paste
+4 0| }
+3 0| }
+3 0| pop <- pop[, naloci]
+2 0| }
+3 0| else if (!is.na(grep("GEN", toupper(type), value=TRUE)[1])){
+FUNK:	is.na
+FUNK:	grep
+FUNK:	toupper
+3 0| nageno <- percent_missing(pop, type=type, cutoff=cutoff)
+FUNK:	percent_missing
+4 0| if(quiet != TRUE){
+5 0| if(all(nageno < 0)){
+FUNK:	all
+5 0| remgeno <- pop@ind.names[-nageno]
+5 0| cat("\n Found", sum(is.na(pop@tab)),"missing values.")
+FUNK:	sum
+FUNK:	is.na
+5 2| genotypes <- paste(length(remgeno), ifelse(length(remgeno) == 1,
+FUNK:	paste
+FUNK:	length
+FUNK:	ifelse
+FUNK:	length
+5 0| "genotype", "genotypes"))
+5 1| cat("\n",genotypes,"contained missing values greater than",
+5 0| paste(cutoff*100,"%.",sep=""))
+FUNK:	paste
+5 0| cat("\n Removing",genotypes,":",remgeno,"\n", fill = 80)
+4 0| }
+5 0| else{
+5 1| cat("\n No genotypes with missing values above",
+5 0| paste(cutoff*100,"%",sep=""),"found.\n")
+FUNK:	paste
+4 0| }
+3 0| }
+3 0| pop <- pop[nageno, ]
+2 0| }
+3 0| else if (toupper(type)=="MEAN"){
+FUNK:	toupper
+3 0| pop <- na.replace(pop,"mean", quiet=quiet)
+FUNK:	na.replace
+2 0| }
+3 0| else if (toupper(type) %in% c("ZERO","0")){
+FUNK:	toupper
+3 0| pop <- na.replace(pop,"0", quiet=quiet)
+FUNK:	na.replace
+2 0| }
+1 0| }
+2 0| else{
+3 0| if(quiet == FALSE){
+3 0| cat("\n No missing values detected.\n")
+2 0| }
+1 0| }
+1 0| return(pop)
+0 0| }
+
+{ (| splitcombine
+- -
+1 0| splitcombine <- function(pop, method=1, dfname="population_hierarchy", sep="_", hier=c(1), setpopulation=TRUE, fixed=TRUE){
+2 0| if (!is.genind(pop)){
+FUNK:	is.genind
+2 0| stop(paste(paste(substitute(pop), collapse=""), "is not a genind object.\n"))
+FUNK:	paste
+FUNK:	paste
+FUNK:	substitute
+1 0| }
+2 0| if (!is.data.frame(pop$other[[dfname]])){
+FUNK:	is.data.frame
+2 0| stop(paste("There is no data frame in ",paste(substitute(pop), collapse=""), "@other called ",dfname,".\n", sep=""))
+FUNK:	paste
+FUNK:	paste
+FUNK:	substitute
+1 0| }
+1 0| METHODS = c("Split", "Combine")
+2 0| if (all((1:2)!=method)) {
+FUNK:	all
+2 0| cat("1 = Split\n")
+2 0| cat("2 = Combine\n")
+2 0| cat("Select an integer (1 or 2): ")
+2 0| method <- as.integer(readLines(n = 1))
+FUNK:	as.integer
+FUNK:	readLines
+1 0| }
+1 0| if (all((1:2)!=method)) (stop ("Non convenient method number"))
+FUNK:	all
+2 0| if(method == 1){
+2 0| df <- pop_splitter(pop$other[[dfname]], sep=sep)
+FUNK:	pop_splitter
+3 0| if(length(df) - 1 == length(hier)){
+FUNK:	length
+FUNK:	length
+3 0| names(df) <- c(paste(hier, collapse=sep), hier)
+FUNK:	names
+FUNK:	paste
+2 0| }
+3 0| else if(length(df) - length(hier) == length(pop$other[[dfname]]) ){
+FUNK:	length
+FUNK:	length
+FUNK:	length
+3 0| names(df)[(length(df) - length(hier) + 1):length(df)] <- hier
+FUNK:	names
+FUNK:	length
+FUNK:	length
+FUNK:	length
+2 0| }
+3 0| if(length(pop$other[[dfname]] == 1)){
+FUNK:	length
+3 0| pop$other[[dfname]] <- df
+2 0| }
+3 0| else if(any(names(pop$other[[dfname]]) %in% names(df[-1]))){
+FUNK:	any
+FUNK:	names
+FUNK:	names
+3 0| df <- df[-1]
+3 0| dfcols <- which(names(pop$other[[dfname]]) %in% names(df))
+FUNK:	which
+FUNK:	names
+FUNK:	names
+3 0| if(length(names(df)) == length(dfcols))
+FUNK:	length
+FUNK:	names
+FUNK:	length
+3 0| pop$other[[dfname]][dfcols] <- df
+4 0| else{
+4 0| popothernames <- which(names(df) %in% names(pop$other[[dfname]][dfcols]))
+FUNK:	which
+FUNK:	names
+FUNK:	names
+4 0| pop$other[[dfname]][dfcols] <- df[popothernames]
+4 0| pop$other[[dfname]] <- cbind(pop$other[[dfname]], df[-dfcols])
+FUNK:	cbind
+3 0| }
+2 0| }
+3 0| else{
+3 0| pop$other[[dfname]] <- cbind(pop$other[[dfname]], df[-1])
+FUNK:	cbind
+2 0| }
+3 0| if(setpopulation == TRUE){
+3 0| hier <- ifelse(is.numeric(hier), as.character(hier), hier)
+FUNK:	ifelse
+FUNK:	is.numeric
+FUNK:	as.character
+3 0| pop(pop) <- pop$other[[dfname]][[hier[1]]]
+FUNK:	pop
+3 0| names(pop$pop.names) <- levels(pop$pop)
+FUNK:	names
+FUNK:	levels
+2 0| }
+2 0| return(pop)
+1 0| }
+2 0| else if(method == 2){
+2 0| newdf <- pop_combiner(pop$other[[dfname]], hier=hier, sep=sep)
+FUNK:	pop_combiner
+3 0| if(all(is.na(newdf))){
+FUNK:	all
+FUNK:	is.na
+3 2| stop(paste("\n\nError in combining population factors.\nCheck your hier flag and make sure that the columns",paste(hier, collapse=" and "),
+FUNK:	paste
+FUNK:	paste
+3 2| "exist within the data frame called",dfname,
+3 0| "in the @other slot of your genind object.\n\n"))
+2 0| }
+2 0| pop$other[[dfname]][[paste(names(pop$other[[dfname]][hier]), collapse=sep)]] <- newdf
+FUNK:	paste
+FUNK:	names
+3 0| if(setpopulation == TRUE){
+3 0| pop(pop) <- newdf
+FUNK:	pop
+3 0| names(pop$pop.names) <- levels(pop$pop)
+FUNK:	names
+FUNK:	levels
+2 0| }
+2 0| return(pop)
+1 0| }
+0 0| }
+
+{ (| informloci
+- -
+1 0| informloci <- function(pop, cutoff = 2/nInd(pop), quiet = FALSE){
+FUNK:	nInd
+2 0| if(!is.genind(pop)){
+FUNK:	is.genind
+2 0| stop("This function only works on genind objects.")
+1 0| }
+1 0| MLG <- mlg(pop, quiet = TRUE)
+FUNK:	mlg
+2 0| if(MLG < 3){
+3 0| if(!isTRUE(quiet)){
+FUNK:	isTRUE
+3 0| cat("Not enough multilocus genotypes to be meaningful.\n")
+2 0| }
+2 0| return(pop)
+1 0| }
+1 0| cutoff <- ifelse(cutoff > 0.5, 1 - cutoff, cutoff)
+FUNK:	ifelse
+1 0| min_ind = round(cutoff*nInd(pop))
+FUNK:	round
+FUNK:	nInd
+2 0| if(!isTRUE(quiet)){
+FUNK:	isTRUE
+2 0| cat("cutoff value:", cutoff*100, "percent (",min_ind,"individuals ).\n")
+1 0| }
+2 0| if(pop@type == "PA"){
+2 0| locivals <- apply(pop@tab, 2, sum) %in% min_ind:(nInd(pop) - min_ind)
+FUNK:	apply
+FUNK:	nInd
+3 0| if(!isTRUE(quiet)){
+FUNK:	isTRUE
+4 0| if(all(locivals == TRUE)){
+FUNK:	all
+4 1| cat("No sites found with fewer than", min_ind,
+4 0| "different individuals.\n", fill = 80)
+3 0| }
+4 0| else{
+4 1| cat(sum(!locivals), "uninformative",
+FUNK:	sum
+4 1| ifelse(sum(!locivals) > 1, "loci", "locus"), "found:",
+FUNK:	ifelse
+FUNK:	sum
+4 0| pop@loc.names[!locivals],"\n", fill = 80)
+3 0| }
+2 0| }
+2 0| return(pop[, locivals])
+1 0| }
+2 0| else{
+3 0| if(is.null(pop@pop)){
+FUNK:	is.null
+3 0| locivals <- apply(as.loci(pop), 2, test_table, min_ind, nInd(pop))
+FUNK:	apply
+FUNK:	as.loci
+FUNK:	nInd
+2 0| }
+3 0| else{
+3 0| locivals <- apply(as.loci(pop)[-1], 2, test_table, min_ind, nInd(pop))
+FUNK:	apply
+FUNK:	as.loci
+FUNK:	nInd
+2 0| }
+3 0| if(!isTRUE(quiet)){
+FUNK:	isTRUE
+4 0| if(all(locivals == TRUE)){
+FUNK:	all
+4 1| cat("No sites found with fewer than", min_ind,
+4 0| "different individuals.\n", fill = 80)
+3 0| }
+4 0| else if(sum(locivals) < 2){
+FUNK:	sum
+4 1| cat("Fewer than 2 loci found informative. Perhaps you should choose a",
+4 0| "lower cutoff value?\nReturning with no changes.\n")
+4 0| return(pop)
+3 0| }
+4 0| else{
+4 1| cat(sum(!locivals), "uninformative",
+FUNK:	sum
+4 1| ifelse(sum(!locivals) > 1, "loci", "locus"), "found:",
+FUNK:	ifelse
+FUNK:	sum
+4 0| pop@loc.names[!locivals],"\n", fill = 80)
+3 0| }
+2 0| }
+2 0| return(pop[, loc = names(pop@loc.names[locivals])])
+FUNK:	names
+1 0| }
+0 0| }
+
+File:	distances.r ==========================================================>
+
+{ (| greycurve
+- -
+1 0| greycurve <- function(glim = c(0,0.8), gadj = 3, gweight = 1){
+1 0| gadj <- ifelse(gweight == 1, gadj, -gadj)
+FUNK:	ifelse
+1 0| adjustcurve(seq(0.001, 1, 0.001), glim, correction=gadj, show=TRUE)
+FUNK:	adjustcurve
+FUNK:	seq
+0 0| }
+
+{ (| diss.dist
+- -
+1 0| diss.dist <- function(pop){
+1 0| ploid     <- ploidy(pop)
+FUNK:	ploidy
+1 0| ind.names <- pop@ind.names
+1 0| inds      <- nInd(pop)
+FUNK:	nInd
+1 0| np        <- choose(inds, 2)
+FUNK:	choose
+1 0| dist.vec  <- matrix(data = 0, nrow=inds, ncol=inds)
+FUNK:	matrix
+2 0| if(pop@type == "PA"){
+2 0| dist.vec[lower.tri(dist.vec)] <- .Call("pairdiffs",pop@tab)
+FUNK:	lower.tri
+FUNK:	.Call
+1 0| }
+2 0| else{
+2 0| pop           <- seploc(pop)
+FUNK:	seploc
+2 0| numLoci       <- length(pop)
+FUNK:	length
+2 0| temp.d.vector <- matrix(nrow = np, ncol = numLoci, data = as.numeric(NA))
+FUNK:	matrix
+FUNK:	as.numeric
+2 1| temp.d.vector <- vapply(pop, function(x) .Call("pairdiffs",x@tab)*(ploid/2),
+FUNK:	vapply
+FUNK:	.Call
+2 0| temp.d.vector[, 1])
+2 0| dist.vec[lower.tri(dist.vec)] <- rowSums(temp.d.vector)
+FUNK:	lower.tri
+FUNK:	rowSums
+1 0| }
+1 0| colnames(dist.vec) <- ind.names
+FUNK:	colnames
+1 0| rownames(dist.vec) <- ind.names
+FUNK:	rownames
+1 0| loci <- ifelse(is.list(pop), length(pop), nLoc(pop))
+FUNK:	ifelse
+FUNK:	is.list
+FUNK:	length
+FUNK:	nLoc
+1 0| return(as.dist(dist.vec/(loci*ploid)))
+FUNK:	as.dist
+0 0| }
+
+File:	file_handling.r ======================================================>
+
+{ (| getfile
+- -
+1 0| getfile <- function(multi=FALSE, pattern=NULL, combine=TRUE){
+2 0| if (multi==TRUE){
+2 0| pathandfile <- file.path(file.choose())
+FUNK:	file.path
+FUNK:	file.choose
+2 0| path <- dirname(pathandfile)
+FUNK:	dirname
+3 0| if (!is.null(pattern)){
+FUNK:	is.null
+3 0| pat <- pattern
+3 0| x <- list.files(path, pattern=pat)
+FUNK:	list.files
+2 0| }
+3 0| else {
+3 0| x <- list.files(path)
+FUNK:	list.files
+2 0| }
+1 0| }
+2 0| else {
+2 0| pathandfile <- file.path(file.choose())
+FUNK:	file.path
+FUNK:	file.choose
+2 0| path <- dirname(pathandfile)
+FUNK:	dirname
+2 0| x <- basename(pathandfile)
+FUNK:	basename
+1 0| }
+2 0| if(combine == TRUE){
+2 0| x <- paste(path, x, sep="/")
+FUNK:	paste
+1 0| }
+1 0| filepath <- list(files=x, path=path)
+FUNK:	list
+1 0| return(filepath)
+0 0| }
+
+{ (| .pop.divide
+- -
+1 0| .pop.divide <- function(x, drop=TRUE) {
+1 0| divcall <- match.call()
+FUNK:	match.call
+2 0| if(!is.genind(x)){
+FUNK:	is.genind
+2 0| stop(c(as.character(divcall[2])," is not a valid genind object"))
+FUNK:	as.character
+1 0| }
+2 0| if (is.null(pop(x))){
+FUNK:	is.null
+FUNK:	pop
+2 0| pops <- NULL
+1 0| }
+2 0| else if (x@type !="PA") {
+2 0| pops <- seppop(x, drop=drop)
+FUNK:	seppop
+1 0| }
+2 0| else {
+2 0| pops <- seppop(x)
+FUNK:	seppop
+1 0| }
+1 0| return(pops)
+0 0| }
+
+{ (| read.genalex
+- -
+1 0| read.genalex <- function(genalex, ploidy=2, geo=FALSE, region=FALSE){
+1 0| gencall <- match.call()
+FUNK:	match.call
+1 0| all.info <- strsplit(readLines(genalex, n=2), ",")
+FUNK:	strsplit
+FUNK:	readLines
+2 0| if (any(all.info[[1]]=="")){
+FUNK:	any
+2 0| num.info <- as.numeric(all.info[[1]][-which(all.info[[1]]=="")])
+FUNK:	as.numeric
+FUNK:	which
+1 0| }
+2 0| else {
+2 0| num.info <- as.numeric(all.info[[1]])
+FUNK:	as.numeric
+1 0| }
+2 0| if (any(all.info[[2]]=="")){
+FUNK:	any
+2 0| pop.info <- all.info[[2]][c(-1,-2,-3,-which(all.info[[2]]==""))]
+FUNK:	which
+1 0| }
+2 0| else {
+2 0| pop.info <- all.info[[2]][c(-1,-2,-3)]
+1 0| }
+1 0| glob.info <- num.info[1:3]
+2 0| if(any(is.na(glob.info))){
+FUNK:	any
+FUNK:	is.na
+2 0| stop("Something is wrong with your csv file. Perhaps it is not comma delimited?\n")
+1 0| }
+1 0| gena <- read.csv(genalex, header=TRUE, skip=2, check.names = FALSE)
+FUNK:	read.csv
+2 0| if(!is.na(which(is.na(gena[1, ]))[1])){
+FUNK:	is.na
+FUNK:	which
+FUNK:	is.na
+2 0| gena <- gena[, -which(is.na(gena[1, ]))]
+FUNK:	which
+FUNK:	is.na
+1 0| }
+2 0| if (region==TRUE & length(pop.info) == glob.info[3] + num.info[glob.info[3]+4]){
+FUNK:	length
+2 0| loci.adj <- c(glob.info[1], glob.info[1]*ploidy)
+3 0| if(((ncol(gena) %in% (loci.adj + 4)) & (geo == TRUE)) | (ncol(gena) %in% (loci.adj + 2))){
+FUNK:	ncol
+FUNK:	ncol
+3 0| pop.vec <- gena[, 2]
+3 0| ind.vec <- gena[, 1]
+3 0| xy <- gena[, c((ncol(gena)-1), ncol(gena))]
+FUNK:	ncol
+FUNK:	ncol
+3 0| region.inds <- ((glob.info[3]+5):length(num.info))
+FUNK:	length
+3 0| reg.inds <- num.info[region.inds]
+3 0| reg.names <- all.info[[2]][region.inds]
+3 0| reg.vec <- rep(reg.names, reg.inds)
+FUNK:	rep
+4 0| if(geo == TRUE){
+4 0| geoinds <- c((ncol(gena)-1), ncol(gena))
+FUNK:	ncol
+FUNK:	ncol
+4 0| xy <- gena[, geoinds]
+4 0| gena <- gena[, -geoinds]
+3 0| }
+4 0| else{
+4 0| xy <- NULL
+3 0| }
+3 0| gena <- gena[, c(-1,-2)]
+2 0| }
+3 0| else{
+3 0| pop.vec <- ifelse(any(gena[, 1] == pop.info[1]), 1, 2)
+FUNK:	ifelse
+FUNK:	any
+3 0| reg.vec <- ifelse(pop.vec == 2, 1, 2)
+FUNK:	ifelse
+3 0| orig.ind.vec <- NULL
+3 0| reg.vec <- gena[, reg.vec]
+3 0| pop.vec <- gena[, pop.vec]
+4 0| if(geo == TRUE){
+4 0| geoinds <- c((ncol(gena)-1), ncol(gena))
+FUNK:	ncol
+FUNK:	ncol
+4 0| xy <- gena[, geoinds]
+4 0| gena <- gena[, -geoinds]
+3 0| }
+4 0| else{
+4 0| xy <- NULL
+3 0| }
+3 0| ind.vec <- gena[, ncol(gena)]
+FUNK:	ncol
+3 0| gena <- gena[, c(-1,-2,-ncol(gena))]
+FUNK:	ncol
+2 0| }
+1 0| }
+2 0| else if (geo == TRUE & length(pop.info) == glob.info[3]){
+FUNK:	length
+2 0| reg.vec <- NULL
+2 0| pop.vec <- gena[, 2]
+2 0| ind.vec <- gena[, 1]
+2 0| xy <- gena[, c((ncol(gena)-1), ncol(gena))]
+FUNK:	ncol
+FUNK:	ncol
+2 0| gena <- gena[, c(-1,-2,-(ncol(gena)-1),-ncol(gena))]
+FUNK:	ncol
+FUNK:	ncol
+1 0| }
+2 0| else{
+2 0| reg.vec <- NULL
+2 0| pop.vec <- gena[, 2]
+2 0| ind.vec <- gena[, 1]
+2 0| xy <- NULL
+2 0| gena <- gena[, c(-1,-2)]
+1 0| }
+1 0| clm <- ncol(gena)
+FUNK:	ncol
+1 0| gena.mat <- as.matrix(gena)
+FUNK:	as.matrix
+2 0| if (glob.info[1] == clm/2){
+3 0| if(any(gena.mat =="0")){
+FUNK:	any
+3 0| gena[gena.mat == "0"] <- NA
+2 0| }
+2 0| type <- 'codom'
+2 0| loci <- which((1:clm)%%2==1)
+FUNK:	which
+2 0| gena2 <- gena[, loci]
+2 1| lapply(loci, function(x) gena2[, ((x-1)/2)+1] <<-
+FUNK:	lapply
+2 0| paste(gena[, x],"/",gena[, x+1], sep=""))
+FUNK:	paste
+2 1| res.gid <- df2genind(gena2, sep="/", ind.names=ind.vec, pop=pop.vec,
+FUNK:	df2genind
+2 0| ploidy=ploidy, type=type)
+1 0| }
+2 0| else if (glob.info[1] == clm & all(gena.mat %in% as.integer(-1:1))) {
+FUNK:	all
+FUNK:	as.integer
+3 0| if(any(gena.mat == -1L)){
+FUNK:	any
+3 0| gena[gena.mat == -1L] <- NA
+2 0| }
+2 0| type <- 'PA'
+2 1| res.gid <- df2genind(gena, ind.names=ind.vec, pop=pop.vec,
+FUNK:	df2genind
+2 0| ploidy=ploidy, type=type)
+1 0| }
+2 0| else if (glob.info[1] == clm & !all(gena.mat %in% as.integer(-1:1))) {
+FUNK:	all
+FUNK:	as.integer
+3 0| if(any(gena.mat == "0")){
+FUNK:	any
+3 0| gena[gena.mat == "0"] <- NA
+2 0| }
+2 0| type <- 'codom'
+2 1| res.gid <- df2genind(gena, ind.names=ind.vec, pop=pop.vec,
+FUNK:	df2genind
+2 0| ploidy= 1, type=type)
+1 0| }
+2 0| else {
+2 0| stop("Something went wrong. Check your geo and region flags to make sure they are set correctly. Otherwise, the problem may lie within the data structure itself.")
+1 0| }
+2 0| if (any(duplicated(ind.vec))){
+FUNK:	any
+FUNK:	duplicated
+2 0| res.gid@ind.names <- paste("ind",1:length(ind.vec))
+FUNK:	paste
+FUNK:	length
+2 0| res.gid@other[["original_names"]] <- ind.vec
+1 0| }
+1 0| res.gid@other[["population_hierarchy"]] <- as.data.frame(list(Pop=pop.vec))
+FUNK:	as.data.frame
+FUNK:	list
+1 0| res.gid@call <- gencall
+1 0| res.gid@call[2] <- basename(genalex)
+FUNK:	basename
+2 0| if(region==TRUE){
+2 0| res.gid@other[["population_hierarchy"]]$Region <- reg.vec
+1 0| }
+2 0| if(geo==TRUE){
+2 0| res.gid@other[["xy"]] <- xy
+1 0| }
+1 0| return(res.gid)
+0 0| }
+
+{ (| genind2genalex
+- -
+1 0| genind2genalex <- function(pop, filename="genalex.csv", quiet=FALSE, geo=FALSE, geodf="xy"){
+1 0| if(!is.genind(pop)) stop("A genind object is needed.")
+FUNK:	is.genind
+2 0| if(is.null(pop@pop)){
+FUNK:	is.null
+2 0| pop(pop) <- rep("Pop", nInd(pop))
+FUNK:	pop
+FUNK:	rep
+FUNK:	nInd
+1 0| }
+1 0| popcall <- match.call()
+FUNK:	match.call
+1 0| topline <- c(nLoc(pop), nInd(pop), length(pop@pop.names))
+FUNK:	nLoc
+FUNK:	nInd
+FUNK:	length
+1 0| popsizes <- table(pop@pop)
+FUNK:	table
+1 0| topline <- c(topline, popsizes)
+1 0| secondline <- c("", "", "", pop@pop.names)
+1 0| ploid <- ploidy(pop)
+FUNK:	ploidy
+2 0| if(ploid > 1 & pop@type == "codom"){
+2 3| locnames <- unlist(strsplit(paste(pop@loc.names,
+FUNK:	unlist
+FUNK:	strsplit
+FUNK:	paste
+2 4| paste(rep(" ", ploidy(pop)-1),
+FUNK:	paste
+FUNK:	rep
+FUNK:	ploidy
+2 0| collapse="/"), sep="/"),"/"))
+1 0| }
+2 0| else{
+2 0| locnames <- pop@loc.names
+1 0| }
+1 0| thirdline <- c("Ind","Pop", locnames)
+2 0| if(length(thirdline) > length(topline)){
+FUNK:	length
+FUNK:	length
+2 0| lenfac <- length(thirdline) - length(topline)
+FUNK:	length
+FUNK:	length
+2 0| topline <- c(topline, rep("", lenfac))
+FUNK:	rep
+2 0| secondline <- c(secondline, rep("", lenfac))
+FUNK:	rep
+1 0| }
+2 0| else if(length(thirdline) < length(topline)){
+FUNK:	length
+FUNK:	length
+2 0| lenfac <- length(topline) - length(thirdline)
+FUNK:	length
+FUNK:	length
+2 0| thirdline <- c(thirdline, rep("", lenfac))
+FUNK:	rep
+1 0| }
+1 0| infolines <- rbind(topline, secondline, thirdline)
+FUNK:	rbind
+2 0| if(any(!pop@tab %in% c(0, ((1:ploid)/ploid), 1, NA))){
+FUNK:	any
+2 0| pop@tab[!pop@tab %in% c(0, ((1:ploid)/ploid), 1, NA)] <- NA
+1 0| }
+1 0| if(!quiet) cat("Extracting the table ... ")
+1 0| df <- genind2df(pop, oneColPerAll=TRUE)
+FUNK:	genind2df
+2 0| if(all(pop@ind.names == "") | is.null(pop@ind.names)){
+FUNK:	all
+FUNK:	is.null
+2 0| pop@ind.names <- paste("ind", 1:nInd(pop), sep="")
+FUNK:	paste
+FUNK:	nInd
+1 0| }
+1 0| df <- cbind(pop@ind.names, df)
+FUNK:	cbind
+1 0| replacement <- ifelse(pop@type =="PA","-1","0")
+FUNK:	ifelse
+1 0| if(!quiet) cat("Writing the table to",filename,"... ")
+2 0| if(geo == TRUE & !is.null(pop$other[[geodf]])){
+FUNK:	is.null
+2 0| replacemat <- matrix("", 3, 3)
+FUNK:	matrix
+2 0| replacemat[3, 2:3] <- c("X", "Y")
+2 0| infolines <- cbind(infolines, replacemat)
+FUNK:	cbind
+2 0| df2 <- data.frame(list("Space" = rep("", nInd(pop))))
+FUNK:	data.frame
+FUNK:	list
+FUNK:	rep
+FUNK:	nInd
+2 0| gdf <- as.matrix(pop@other[[geodf]])
+FUNK:	as.matrix
+3 0| if(nrow(gdf) < nInd(pop)){
+FUNK:	nrow
+FUNK:	nInd
+3 0| gdf <- rbind(gdf, matrix("", nInd(pop) - nrow(gdf), 2))
+FUNK:	rbind
+FUNK:	matrix
+FUNK:	nInd
+FUNK:	nrow
+2 0| }
+2 0| df <- cbind(df, df2, gdf)
+FUNK:	cbind
+1 0| }
+2 0| else if (geo == TRUE){
+2 0| popcall <- popcall[2]
+2 2| warning(paste("There is no data frame or matrix in ",
+FUNK:	paste
+2 2| paste(substitute(popcall), collapse=""),
+FUNK:	paste
+FUNK:	substitute
+2 2| "@other called ",geodf,
+2 0| ".\nThe xy coordinates will not be represented in the resulting file.", sep=""))
+1 0| }
+1 0| df[df == "NA" | is.na(df)] <- replacement
+FUNK:	is.na
+1 1| write.table(infolines, file=filename, quote=FALSE, row.names=FALSE,
+FUNK:	write.table
+1 0| col.names=FALSE, sep=",")
+1 1| write.table(df, file=filename, quote=TRUE, na=replacement, append=TRUE,
+FUNK:	write.table
+1 0| row.names=FALSE, col.names=FALSE, sep=",")
+1 0| if(!quiet) cat("Done.\n")
+0 0| }
+
+File:	Index_calculations.r =================================================>
+
+{ (| poppr
+- -
+0 1| poppr <- function(pop,total=TRUE, sublist=c("ALL"), blacklist=c(NULL), sample=0,
+0 1| method=1, missing="ignore", cutoff=0.05, quiet=FALSE,
+0 1| clonecorrect=FALSE, hier=c(1), dfname="population_hierarchy",
+1 0| keep = 1, hist=TRUE, minsamp=10){
+1 1| METHODS = c("permute alleles", "parametric bootstrap",
+1 0| "non-parametric bootstrap", "multilocus")
+1 1| x <- .file.type(pop, missing=missing, cutoff=cutoff, clonecorrect=clonecorrect,
+FUNK:	.file.type
+1 0| hier=hier, dfname=dfname, keep=keep, quiet=TRUE)
+1 0| namelist <- NULL
+1 0| callpop  <- match.call()
+FUNK:	match.call
+2 0| if(!is.na(grep("system.file", callpop)[1])){
+FUNK:	is.na
+FUNK:	grep
+2 0| popsplt <- unlist(strsplit(pop, "/"))
+FUNK:	unlist
+FUNK:	strsplit
+2 0| namelist$File <- popsplt[length(popsplt)]
+FUNK:	length
+1 0| }
+2 0| else if(is.genind(pop)){
+FUNK:	is.genind
+2 0| namelist$File <- x$X
+1 0| }
+2 0| else{
+2 0| namelist$File <- basename(x$X)
+FUNK:	basename
+1 0| }
+2 0| if(toupper(sublist[1]) == "TOTAL" & length(sublist) == 1){
+FUNK:	toupper
+FUNK:	length
+2 0| pop           <- x$GENIND
+2 0| pop(pop)      <- NULL
+FUNK:	pop
+2 0| poplist       <- NULL
+2 0| poplist$Total <- pop
+1 0| }
+2 0| else{
+2 0| pop <- popsub(x$GENIND, sublist=sublist, blacklist=blacklist)
+FUNK:	popsub
+3 0| if (any(levels(pop(pop)) == "")){
+FUNK:	any
+FUNK:	levels
+FUNK:	pop
+3 0| levels(pop(pop))[levels(pop(pop)) == ""] <- "?"
+FUNK:	levels
+FUNK:	pop
+FUNK:	levels
+FUNK:	pop
+3 0| warning("missing population factor replaced with '?'")
+2 0| }
+2 0| poplist <- .pop.divide(pop)
+FUNK:	.pop.divide
+1 0| }
+1 0| pop.mat <- mlg.matrix(pop)
+FUNK:	mlg.matrix
+2 0| if (total==TRUE & !is.null(poplist) & length(poplist) > 1){
+FUNK:	is.null
+FUNK:	length
+2 0| poplist$Total <- pop
+2 0| pop.mat <- rbind(pop.mat, colSums(pop.mat))
+FUNK:	rbind
+FUNK:	colSums
+1 0| }
+1 0| sublist <- names(poplist)
+FUNK:	names
+1 0| Iout    <- NULL
+1 0| result  <- NULL
+1 0| origpop <- x$GENIND
+1 0| rm(x)
+FUNK:	rm
+1 0| total   <- toupper(total)
+FUNK:	toupper
+1 0| missing <- toupper(missing)
+FUNK:	toupper
+1 0| type    <- pop@type
+2 0| if(type=="PA"){
+2 0| .Ia.Rd <- .PA.Ia.Rd
+1 0| }
+2 0| if (is.null(poplist)){
+FUNK:	is.null
+2 0| MPI <- NULL
+1 0| }
+2 0| else{
+2 0| MPI <- 1
+1 0| }
+2 0| if (!is.null(MPI)){
+FUNK:	is.null
+2 0| MLG.vec <- vapply(sublist, function(x) mlg(poplist[[x]], quiet=TRUE), 1)
+FUNK:	vapply
+FUNK:	mlg
+2 0| N.vec   <- vapply(sublist, function(x) length(poplist[[x]]@ind.names), 1)
+FUNK:	vapply
+FUNK:	length
+2 0| H       <- vegan::diversity(pop.mat)
+FUNK:	diversity
+2 0| G       <- vegan::diversity(pop.mat, "inv")
+FUNK:	diversity
+2 0| Hexp    <- (N.vec/(N.vec-1))*vegan::diversity(pop.mat, "simp")
+FUNK:	diversity
+2 0| E.5     <- (G-1)/(exp(H)-1)
+FUNK:	exp
+2 1| raremax <- ifelse(is.null(nrow(pop.mat)), sum(pop.mat),
+FUNK:	ifelse
+FUNK:	is.null
+FUNK:	nrow
+FUNK:	sum
+2 2| ifelse(min(rowSums(pop.mat)) > minsamp,
+FUNK:	ifelse
+FUNK:	min
+FUNK:	rowSums
+2 0| min(rowSums(pop.mat)), minsamp))
+FUNK:	min
+FUNK:	rowSums
+2 0| N.rare <- suppressWarnings(rarefy(pop.mat, raremax, se=TRUE))
+FUNK:	suppressWarnings
+FUNK:	rarefy
+2 0| IaList <- NULL
+2 2| invisible(lapply(sublist, function(x)
+FUNK:	invisible
+FUNK:	lapply
+2 3| IaList <<- rbind(IaList,
+FUNK:	rbind
+2 4| .ia(poplist[[x]],
+FUNK:	.ia
+2 4| sample=sample,
+2 4| method=method,
+2 4| quiet=quiet,
+2 4| missing=missing,
+2 4| namelist=list(File=namelist$File, population = x),
+FUNK:	list
+2 4| hist=hist
+2 0| ))))
+2 2| Iout <- as.data.frame(list(Pop=sublist, N=N.vec, MLG=MLG.vec,
+FUNK:	as.data.frame
+FUNK:	list
+2 2| eMLG=round(N.rare[1, ], 3),
+FUNK:	round
+2 2| SE=round(N.rare[2, ], 3),
+FUNK:	round
+2 2| H=round(H, 3),
+FUNK:	round
+2 2| G=round(G,3),
+FUNK:	round
+2 2| Hexp=round(Hexp, 3),
+FUNK:	round
+2 2| E.5=round(E.5,3),
+FUNK:	round
+2 2| round(IaList, 3),
+FUNK:	round
+2 0| File=namelist$File))
+2 0| rownames(Iout) <- NULL
+FUNK:	rownames
+2 0| return(final(Iout, result))
+FUNK:	final
+2 0| } else {
+2 0| MLG.vec <- mlg(pop, quiet=TRUE)
+FUNK:	mlg
+2 0| N.vec <- length(pop@ind.names)
+FUNK:	length
+2 0| H <- vegan::diversity(pop.mat)
+FUNK:	diversity
+2 0| G <- vegan::diversity(pop.mat, "inv")
+FUNK:	diversity
+2 0| Hexp <- (N.vec/(N.vec-1))*vegan::diversity(pop.mat, "simp")
+FUNK:	diversity
+2 0| E.5 <- (G-1)/(exp(H)-1)
+FUNK:	exp
+2 0| N.rare <- rarefy(pop.mat, sum(pop.mat), se=TRUE)
+FUNK:	rarefy
+FUNK:	sum
+2 1| IaList <- .ia(pop, sample=sample, method=method, quiet=quiet, missing=missing,
+FUNK:	.ia
+2 1| namelist=(list(File=namelist$File, population="Total")),
+FUNK:	list
+2 0| hist=hist)
+2 2| Iout <- as.data.frame(list(Pop="Total", N=N.vec, MLG=MLG.vec,
+FUNK:	as.data.frame
+FUNK:	list
+2 2| eMLG=round(N.rare[1, ], 3),
+FUNK:	round
+2 2| SE=round(N.rare[2, ], 3),
+FUNK:	round
+2 2| H=round(H, 3),
+FUNK:	round
+2 2| G=round(G,3),
+FUNK:	round
+2 2| Hexp=round(Hexp, 3),
+FUNK:	round
+2 2| E.5=round(E.5,3),
+FUNK:	round
+2 2| round(as.data.frame(t(IaList)), 3),
+FUNK:	round
+FUNK:	as.data.frame
+FUNK:	t
+2 0| File=namelist$File))
+2 0| rownames(Iout) <- NULL
+FUNK:	rownames
+2 0| return(final(Iout, result))
+FUNK:	final
+1 0| }
+0 0| }
+
+{ (| poppr.all
+- -
+1 0| poppr.all <- function(filelist, ...) {
+1 0| result <- NULL
+2 0| for(a in filelist){
+2 0| cat("| File: ",basename(a),"\n")
+FUNK:	basename
+2 0| result <- rbind(result, poppr(a, ...))
+FUNK:	rbind
+FUNK:	poppr
+1 0| }
+1 0| return(result)
+0 0| }
+
+{ (| ia
+- -
+0 1| ia <- function(pop, sample=0, method=1, quiet=FALSE, missing="ignore",
+1 0| hist=TRUE){
+1 1| METHODS = c("permute alleles", "parametric bootstrap",
+1 0| "non-parametric bootstrap", "multilocus")
+1 0| namelist            <- NULL
+1 1| namelist$population <- ifelse(length(levels(pop@pop)) > 1 |
+FUNK:	ifelse
+FUNK:	length
+FUNK:	levels
+1 0| is.null(pop@pop), "Total", pop@pop.names)
+FUNK:	is.null
+1 0| namelist$File       <- as.character(pop@call[2])
+FUNK:	as.character
+1 0| popx    <- pop
+1 0| missing <- toupper(missing)
+FUNK:	toupper
+1 0| type    <- pop@type
+2 0| if(type=="PA"){
+2 0| .Ia.Rd <- .PA.Ia.Rd
+1 0| }
+2 0| else {
+2 0| popx <- seploc(popx)
+FUNK:	seploc
+1 0| }
+2 0| if (nInd(pop) < 3){
+FUNK:	nInd
+2 0| IarD <- as.numeric(c(NA,NA))
+FUNK:	as.numeric
+2 0| names(IarD) <- c("Ia", "rbarD")
+FUNK:	names
+3 0| if(sample==0){
+3 0| return(IarD)
+2 0| }
+3 0| else{
+3 0| IarD <- as.numeric(rep(NA,4))
+FUNK:	as.numeric
+FUNK:	rep
+3 0| names(IarD) <- c("Ia","p.Ia","rbarD","p.rD")
+FUNK:	names
+3 0| return(IarD)
+2 0| }
+1 0| }
+1 0| IarD <- .Ia.Rd(popx, missing)
+FUNK:	.Ia.Rd
+1 0| names(IarD) <- c("Ia", "rbarD")
+FUNK:	names
+2 0| if (sample==0){
+2 0| Iout   <- IarD
+2 0| result <- NULL
+1 0| }
+2 0| else{
+2 0| Iout     <- NULL
+2 0| idx      <- as.data.frame(list(Index=names(IarD)))
+FUNK:	as.data.frame
+FUNK:	list
+FUNK:	names
+2 0| samp     <- .sampling(popx, sample, missing, quiet=quiet, type=type, method=method)
+FUNK:	.sampling
+2 0| samp2    <- rbind(samp, IarD)
+FUNK:	rbind
+2 0| p.val    <- ia.pval(index="Ia", samp2, IarD[1])
+FUNK:	ia.pval
+2 0| p.val[2] <- ia.pval(index="rbarD", samp2, IarD[2])
+FUNK:	ia.pval
+3 0| if(hist == TRUE){
+3 1| poppr.plot(samp, observed=IarD, pop=namelist$population,
+FUNK:	poppr.plot
+3 0| file=namelist$File, pval=p.val, N=nrow(pop@tab))
+FUNK:	nrow
+2 0| }
+2 0| result         <- 1:4
+2 0| result[c(1,3)] <- IarD
+2 0| result[c(2,4)] <- p.val
+2 0| names(result)  <- c("Ia","p.Ia","rbarD","p.rD")
+FUNK:	names
+1 0| }
+1 0| return(final(Iout, result))
+FUNK:	final
+0 0| }
+
+File:	internal.r ===========================================================>
+0 0| NULL
+0 0| NULL
+
+{ (| extract.info
+- -
+1 0| extract.info <- function(x) {
+2 0| if (length(grep("^clone.+?dat$", x$File)) != 0){
+FUNK:	length
+FUNK:	grep
+2 0| x$Clone <- as.numeric(sub("^clone.(\\d{3}.\\d{2}).+?dat$","\\1", x$File))
+FUNK:	as.numeric
+FUNK:	sub
+FUNK:	clone.
+2 0| x$Sex.Rate <- (100-x$Clone)/100
+1 0| }
+2 0| if (length(grep(".+?rep.+?dat$", x$File)) != 0){
+FUNK:	length
+FUNK:	grep
+2 0| x$Replicate <- sub(".+?rep.(\\d{2}).+?dat$", "\\1", x$File)
+FUNK:	sub
+FUNK:	rep.
+1 0| }
+2 0| if (length(grep(".+?pop.+?dat$", x$File)) != 0){
+FUNK:	length
+FUNK:	grep
+2 0| x$Pop.Size <- sub(".+?pop.(\\d+?).+?dat$","\\1", x$File)
+FUNK:	sub
+FUNK:	pop.
+1 0| }
+2 0| if (length(grep(".+?sam.+?dat$", x$File)) != 0){
+FUNK:	length
+FUNK:	grep
+2 0| x$Samp.Size <- sub(".+?sam.+?(\\d{2,3}).+?dat$", "\\1", x$File)
+FUNK:	sub
+1 0| }
+1 0| return(x)
+0 0| }
+
+{ (| .file.type
+- -
+0 1| .file.type <- function(pop, quiet=TRUE, missing="ignore", cutoff=0.05, keep=1,
+1 0| clonecorrect=FALSE, hier=c(1), dfname="hier"){
+2 0| if (!is.genind(pop)){
+FUNK:	is.genind
+2 0| x <- pop
+3 0| if (toupper(.readExt(x)) == "CSV"){
+FUNK:	toupper
+FUNK:	.readExt
+3 0| try(pop <- read.genalex(x), silent=quiet)
+FUNK:	try
+FUNK:	read.genalex
+3 0| try(pop <- read.genalex(x, region=TRUE), silent=quiet)
+FUNK:	try
+FUNK:	read.genalex
+3 0| try(pop <- read.genalex(x, geo=TRUE), silent=quiet)
+FUNK:	try
+FUNK:	read.genalex
+3 0| try(pop <- read.genalex(x, geo=TRUE, region=TRUE), silent=quiet)
+FUNK:	try
+FUNK:	read.genalex
+3 0| } else {
+3 0| try(pop <- import2genind(x, quiet=quiet), silent=quiet)
+FUNK:	try
+FUNK:	import2genind
+2 0| }
+2 0| stopifnot(is.genind(pop))
+FUNK:	is.genind
+2 0| pop@call[2] <- x
+2 0| popcall     <- pop@call
+2 0| pop         <- missingno(pop, type=missing, cutoff=cutoff, quiet=quiet)
+FUNK:	missingno
+2 0| pop@call    <- popcall
+3 0| if (clonecorrect == TRUE){
+3 0| poplist  <- clonecorrect(pop, hier=hier, dfname=dfname, keep=keep)
+FUNK:	clonecorrect
+3 0| pop      <- poplist
+3 0| pop@call <- popcall
+2 0| }
+2 0| } else if (is.genind(pop)) {
+FUNK:	is.genind
+2 0| x       <- as.character(pop@call)[2]
+FUNK:	as.character
+2 0| popcall <- pop@call
+2 0| pop     <- missingno(pop, type=missing, cutoff=cutoff, quiet=quiet)
+FUNK:	missingno
+3 0| if (clonecorrect == TRUE){
+3 0| poplist  <- clonecorrect(pop, hier=hier, dfname=dfname, keep=keep)
+FUNK:	clonecorrect
+3 0| pop      <- poplist
+3 0| pop@call <- popcall
+2 0| }
+1 0| }
+1 0| return(list(X=x, GENIND=pop))
+FUNK:	list
+0 0| }
+
+{ (| .clonecorrector
+- -
+1 0| .clonecorrector <- function(x){
+1 0| res <- -which(duplicated(x@tab[, 1:ncol(x@tab)]))
+FUNK:	which
+FUNK:	duplicated
+FUNK:	ncol
+2 0| if(is.na(res[1])){
+FUNK:	is.na
+2 0| res <- which(!duplicated(x@tab[, 1:ncol(x@tab)]))
+FUNK:	which
+FUNK:	duplicated
+FUNK:	ncol
+1 0| }
+1 0| return(res)
+0 0| }
+
+{ (| geno.na
+- -
+1 0| geno.na <- function(pop){
+1 0| pop2 <- -unique(which(is.na(pop@tab), arr.ind=T)[,1])
+FUNK:	unique
+FUNK:	which
+FUNK:	is.na
+2 0| if(is.na(pop2[1])){
+FUNK:	is.na
+2 0| return(unique(which(!is.na(pop@tab), arr.ind=T)[,1]))
+FUNK:	unique
+FUNK:	which
+FUNK:	is.na
+2 0| } else {
+2 0| return(pop2)
+1 0| }
+0 0| }
+
+{ (| loci.na
+- -
+1 0| loci.na <- function(pop) {
+1 0| pop2 <- -unique(which(is.na(pop@tab), arr.ind=T)[,2])
+FUNK:	unique
+FUNK:	which
+FUNK:	is.na
+2 0| if(is.na(pop2[1])){
+FUNK:	is.na
+2 0| return(unique(which(!is.na(pop@tab), arr.ind=T)[,2]))
+FUNK:	unique
+FUNK:	which
+FUNK:	is.na
+2 0| } else {
+2 0| return(pop2)
+1 0| }
+0 0| }
+
+{ (| percent_missing
+- -
+1 0| percent_missing <- function(pop, type="loci", cutoff=0.05){
+2 0| if (toupper(type) == "LOCI"){
+FUNK:	toupper
+2 0| misslist <- loci.na(pop)
+FUNK:	loci.na
+3 0| if(all(misslist > 0)){
+FUNK:	all
+3 0| return(misslist)
+2 0| }
+2 0| poplen <- nInd(pop)
+FUNK:	nInd
+2 1| filter <- vapply(-misslist, function(x)
+FUNK:	vapply
+2 0| length(which(is.na(pop@tab[, x])))/poplen, 1) > cutoff
+FUNK:	length
+FUNK:	which
+FUNK:	is.na
+3 0| if (is.na(filter[1])){
+FUNK:	is.na
+3 0| filter <- 1:length(misslist)
+FUNK:	length
+2 0| }
+2 0| } else {
+2 0| misslist <- geno.na(pop)
+FUNK:	geno.na
+3 0| if(all(misslist > 0)){
+FUNK:	all
+3 0| return(misslist)
+2 0| }
+2 0| poplen <- nLoc(pop)
+FUNK:	nLoc
+2 1| filter <- vapply(-misslist, function(x)
+FUNK:	vapply
+2 0| length(unique( pop@loc.fac[which(is.na(pop@tab[x, ]))] )) / poplen, 1) > cutoff
+FUNK:	length
+FUNK:	unique
+FUNK:	which
+FUNK:	is.na
+1 0| }
+2 0| if (all(filter %in% FALSE)){
+FUNK:	all
+2 0| filter   <- 1:length(misslist)
+FUNK:	length
+2 0| misslist <- 1:length(misslist)
+FUNK:	length
+1 0| }
+1 0| return(misslist[filter])
+0 0| }
+
+{ (| round.poppr
+- -
+1 0| round.poppr <- function(x){
+1 0| if (x - as.integer(x) == 0.5 & as.integer(x)%%2 == 0)
+FUNK:	as.integer
+FUNK:	as.integer
+1 0| x <- round(x) + 1
+FUNK:	round
+1 0| else if(-x + as.integer(x) == 0.5 & as.integer(x)%%2 == 0)
+FUNK:	as.integer
+FUNK:	as.integer
+1 0| x <- round(x) - 1
+FUNK:	round
+1 0| else
+1 0| x <- round(x)
+FUNK:	round
+1 0| return(x)
+0 0| }
+
+{ (| ia.pval
+- -
+1 0| ia.pval <- function(index="index", sampled, observed){
+2 0| if (all(is.nan(sampled[[index]]))){
+FUNK:	all
+FUNK:	is.nan
+2 0| return(NA)
+1 0| }
+1 0| pval <- mean(ifelse(!is.na(sampled[[index]]) & sampled[[index]] >= observed,1,0))
+FUNK:	mean
+FUNK:	ifelse
+FUNK:	is.na
+1 0| return(pval)
+0 0| }
+
+{ (| pop_splitter
+- -
+1 0| pop_splitter <- function(df, sep="_"){
+1 0| if(is.vector(df))
+FUNK:	is.vector
+1 0| df <- as.data.frame(list(comb=df), stringsAsFactors=FALSE)
+FUNK:	as.data.frame
+FUNK:	list
+1 0| if(is.factor(df[[1]]))
+FUNK:	is.factor
+1 0| df[[1]] <- as.character(df[[1]])
+FUNK:	as.character
+2 0| for(x in seq(length(strsplit(df[[1]], sep)[[1]]))){
+FUNK:	seq
+FUNK:	length
+FUNK:	strsplit
+2 0| df[[paste0("h",x)]] <- "NA"
+FUNK:	paste0
+2 1| df[[paste0("h",x)]] <- vapply(strsplit(df[[1]],sep),
+FUNK:	paste0
+FUNK:	vapply
+FUNK:	strsplit
+2 0| function(y) y[x], "1")
+1 0| }
+1 0| return(df)
+0 0| }
+
+{ (| pop_combiner
+- -
+1 0| pop_combiner <- function(df, hier=c(1), sep="_"){
+2 0| if(!is.list(df)){
+FUNK:	is.list
+2 0| warning("df must be a data frame or a list")
+2 0| return(df)
+1 0| }
+2 0| else{
+3 0| if(length(hier)==1){
+FUNK:	length
+3 0| return(df[[hier]])
+2 0| }
+3 0| else{
+3 0| comb <- vector(length=length(df[[hier[1]]]))
+FUNK:	vector
+FUNK:	length
+3 0| comb <- df[[hier[1]]]
+3 0| lapply(hier[-1], function(x) comb <<- paste(comb, df[[x]], sep=sep))
+FUNK:	lapply
+FUNK:	paste
+3 0| return(comb)
+2 0| }
+1 0| }
+0 0| }
+
+{ (| sub_index
+- -
+1 0| sub_index <- function(pop, sublist="ALL", blacklist=NULL){
+2 0| if (!is.genind(pop)){
+FUNK:	is.genind
+2 0| stop("pop.subset requires a genind object\n")
+1 0| }
+2 0| if (is.null(pop(pop))){
+FUNK:	is.null
+FUNK:	pop
+2 0| warning("No population structure. Subsetting not taking place.")
+2 0| return(1:length(pop@ind.names))
+FUNK:	length
+1 0| }
+2 0| if(toupper(sublist[1]) == "ALL"){
+FUNK:	toupper
+3 0| if (is.null(blacklist)){
+FUNK:	is.null
+3 0| return(1:length(pop@ind.names))
+FUNK:	length
+2 0| }
+3 0| else {
+3 0| sublist <- pop@pop.names
+2 0| }
+1 0| }
+2 0| if (is.null(names(pop@pop.names))){
+FUNK:	is.null
+FUNK:	names
+3 0| if (length(pop@pop.names) == length(levels(pop@pop))){
+FUNK:	length
+FUNK:	length
+FUNK:	levels
+3 0| names(pop@pop.names) <- levels(pop@pop)
+FUNK:	names
+FUNK:	levels
+2 0| }
+3 0| else{
+3 0| stop("Population names do not match population factors.")
+2 0| }
+1 0| }
+2 0| if (!is.null(blacklist)){
+FUNK:	is.null
+3 0| if (is.numeric(sublist) & is.numeric(blacklist) | class(sublist) == class(blacklist)){
+FUNK:	is.numeric
+FUNK:	is.numeric
+FUNK:	class
+FUNK:	class
+3 0| sublist <- sublist[!sublist %in% blacklist]
+3 0| } else if (is.numeric(sublist) & class(blacklist) == "character"){
+FUNK:	is.numeric
+FUNK:	class
+3 0| sublist <- sublist[sublist %in% which(!pop@pop.names %in% blacklist)]
+FUNK:	which
+3 0| } else {
+4 0| if(all(pop@pop.names %in% sublist)){
+FUNK:	all
+4 0| sublist <- sublist[-blacklist]
+4 0| } else {
+4 0| warning("Blacklist is numeric. Interpreting blacklist as the index of the population in the total data set.")
+4 0| sublist <- sublist[!sublist %in% pop@pop.names[blacklist]]
+3 0| }
+2 0| }
+1 0| }
+1 0| if (is.numeric(sublist))
+FUNK:	is.numeric
+1 0| sublist <- names(pop@pop.names[sublist])
+FUNK:	names
+1 0| else
+1 0| sublist <- names(pop@pop.names[pop@pop.names %in% sublist])
+FUNK:	names
+1 0| sublist <- (1:length(pop@pop))[pop@pop %in% sublist]
+FUNK:	length
+2 0| if(is.na(sublist[1])){
+FUNK:	is.na
+2 0| warning("All items present in Sublist are also present in the Blacklist.\nSubsetting not taking place.")
+2 0| return(1:length(pop@ind.names))
+FUNK:	length
+1 0| }
+1 0| return(sublist)
+0 0| }
+
+{ (| mlg.matrix
+- -
+1 0| mlg.matrix <- function(pop){
+1 0| countvec2 <- mlg.vector(pop)
+FUNK:	mlg.vector
+2 0| if(!is.null(pop@pop)){
+FUNK:	is.null
+2 1| mlg.mat <- matrix(ncol=length(unique(countvec2)),nrow=length(levels(pop@pop)),
+FUNK:	matrix
+FUNK:	length
+FUNK:	unique
+FUNK:	length
+FUNK:	levels
+2 0| data=0)
+3 1| lapply(levels(pop@pop),function(z){
+FUNK:	lapply
+FUNK:	levels
+3 3| count <- as.numeric(paste(unlist
+FUNK:	as.numeric
+FUNK:	paste
+3 3| (strsplit(z,""))[2:nchar(z)],
+FUNK:	strsplit
+FUNK:	nchar
+3 1| collapse=""))
+3 2| sapply(countvec2[which(pop@pop==z)],
+FUNK:	sapply
+FUNK:	which
+3 2| function(a) mlg.mat[count, a] <<-
+3 1| mlg.mat[count, a] + 1)
+2 0| })
+2 0| rownames(mlg.mat) <- pop@pop.names
+FUNK:	rownames
+1 0| }
+2 0| else{
+2 2| mlg.mat <- t(as.matrix(
+FUNK:	t
+FUNK:	as.matrix
+2 0| vector(length=length(unique(countvec2)), mode="numeric")))
+FUNK:	vector
+FUNK:	length
+FUNK:	unique
+2 0| sapply(countvec2, function(a) mlg.mat[a] <<- mlg.mat[a] + 1)
+FUNK:	sapply
+2 0| rownames(mlg.mat) <- "Total"
+FUNK:	rownames
+1 0| }
+1 0| colnames(mlg.mat) <- paste("MLG",seq(ncol(mlg.mat)), sep=".")
+FUNK:	colnames
+FUNK:	paste
+FUNK:	seq
+FUNK:	ncol
+1 0| return(mlg.mat)
+0 0| }
+
+{ (| .PA.Ia.Rd
+- -
+1 0| .PA.Ia.Rd <- function(pop, missing=NULL){
+1 0| vard.vector <- NULL
+1 0| numLoci     <- ncol(pop@tab)
+FUNK:	ncol
+1 0| numIsolates <- nrow(pop@tab)
+FUNK:	nrow
+1 0| np <- choose(numIsolates, 2)
+FUNK:	choose
+2 0| if(np < 2){
+2 0| return(as.numeric(c(NaN, NaN)))
+FUNK:	as.numeric
+1 0| }
+1 0| V <- .PA.pairwise.differences(pop,numLoci,np, missing=missing)
+FUNK:	.PA.pairwise.differences
+1 0| varD <- ((sum(V$D.vector^2)-((sum(V$D.vector))^2)/np))/np
+FUNK:	sum
+FUNK:	sum
+1 0| vard.vector <- ((V$d2.vector-((V$d.vector^2)/np))/np)
+1 0| vardpair.vector <- .Call("pairwise_covar", vard.vector)
+FUNK:	.Call
+1 0| sigVarj <- sum(vard.vector)
+FUNK:	sum
+1 0| rm(vard.vector)
+FUNK:	rm
+1 0| Ia    <- (varD/sigVarj)-1
+1 0| rbarD <- (varD - sigVarj)/(2*sum(vardpair.vector))
+FUNK:	sum
+1 0| return(c(Ia, rbarD))
+0 0| }
+
+{ (| .PA.pairwise.differences
+- -
+1 0| .PA.pairwise.differences <- function(pop,numLoci,np, missing){
+1 0| temp.d.vector <- matrix(nrow=np, ncol=numLoci, data=as.numeric(NA))
+FUNK:	matrix
+FUNK:	as.numeric
+2 0| if( missing == "MEAN" ){
+2 1| temp.d.vector <- vapply(seq(numLoci),
+FUNK:	vapply
+FUNK:	seq
+2 1| function(x) as.vector(dist(pop@tab[,x])),
+FUNK:	as.vector
+FUNK:	dist
+2 0| temp.d.vector[,1])
+2 0| tempz <- !temp.d.vector %in% 0:1
+2 0| temp.d.vector[tempz] <- vapply(temp.d.vector[tempz], round.poppr, 1)
+FUNK:	vapply
+2 0| } else {
+2 1| temp.d.vector <- vapply(seq(numLoci),
+FUNK:	vapply
+FUNK:	seq
+2 1| function(x) as.vector(dist(pop@tab[,x])),
+FUNK:	as.vector
+FUNK:	dist
+2 0| temp.d.vector[,1])
+3 0| if(any(is.na(temp.d.vector))){
+FUNK:	any
+FUNK:	is.na
+3 0| temp.d.vector[which(is.na(temp.d.vector))] <- 0
+FUNK:	which
+FUNK:	is.na
+2 0| }
+1 0| }
+2 0| if (ploidy(pop) > 1){
+FUNK:	ploidy
+2 0| temp.d.vector <- temp.d.vector*ploidy(pop)
+FUNK:	ploidy
+2 0| d.vector  <- as.vector(colSums(temp.d.vector))
+FUNK:	as.vector
+FUNK:	colSums
+2 0| d2.vector <- as.vector(colSums(temp.d.vector^2))
+FUNK:	as.vector
+FUNK:	colSums
+2 0| D.vector  <- as.vector(rowSums(temp.d.vector))
+FUNK:	as.vector
+FUNK:	rowSums
+2 0| } else {
+2 0| d.vector  <- as.vector(colSums(temp.d.vector))
+FUNK:	as.vector
+FUNK:	colSums
+2 0| d2.vector <- d.vector
+2 0| D.vector  <- as.vector(rowSums(temp.d.vector))
+FUNK:	as.vector
+FUNK:	rowSums
+1 0| }
+1 0| vectors <- list(d.vector=d.vector, d2.vector=d2.vector, D.vector=D.vector)
+FUNK:	list
+1 0| return(vectors)
+0 0| }
+
+{ (| final
+- -
+1 0| final <- function(Iout, result){
+2 0| if (is.null(result)){
+FUNK:	is.null
+2 0| return(Iout)
+2 0| } else {
+2 0| return(result)
+1 0| }
+0 0| }
+
+{ (| .ia
+- -
+0 1| .ia <- function(pop, sample=0, method=1, quiet=FALSE, namelist=NULL,
+1 0| missing="ignore", hist=TRUE){
+1 1| METHODS = c("permute alleles", "parametric bootstrap",
+1 0| "non-parametric bootstrap", "multilocus")
+2 0| if(pop@type!="PA"){
+2 0| type <- pop@type
+2 0| popx <- seploc(pop)
+FUNK:	seploc
+1 0| }
+2 0| else {
+2 0| type   <- pop@type
+2 0| popx   <- pop
+2 0| .Ia.Rd <- .PA.Ia.Rd
+1 0| }
+2 0| if (nInd(pop) < 3){
+FUNK:	nInd
+2 0| IarD <- as.numeric(c(NA,NA))
+FUNK:	as.numeric
+2 0| names(IarD) <- c("Ia", "rbarD")
+FUNK:	names
+3 0| if(sample==0){
+3 0| return(IarD)
+2 0| }
+3 0| else{
+3 0| IarD <- as.numeric(rep(NA,4))
+FUNK:	as.numeric
+FUNK:	rep
+3 0| names(IarD) <- c("Ia","p.Ia","rbarD","p.rD")
+FUNK:	names
+3 0| return(IarD)
+2 0| }
+1 0| }
+1 0| IarD <- .Ia.Rd(popx, missing)
+FUNK:	.Ia.Rd
+2 0| if (!quiet){
+2 0| cat("|", namelist$population ,"\n")
+1 0| }
+1 0| names(IarD) <- c("Ia", "rbarD")
+FUNK:	names
+2 0| if (sample==0){
+2 0| Iout   <- IarD
+2 0| result <- NULL
+1 0| }
+2 0| else{
+2 0| Iout     <- NULL
+2 0| idx      <- as.data.frame(list(Index=names(IarD)))
+FUNK:	as.data.frame
+FUNK:	list
+FUNK:	names
+2 0| samp     <- .sampling(popx, sample, missing, quiet=quiet, type=type, method=method)
+FUNK:	.sampling
+2 0| samp2    <- rbind(samp, IarD)
+FUNK:	rbind
+2 0| p.val    <- ia.pval(index="Ia", samp2, IarD[1])
+FUNK:	ia.pval
+2 0| p.val[2] <- ia.pval(index="rbarD", samp2, IarD[2])
+FUNK:	ia.pval
+3 0| if(hist == TRUE){
+3 1| poppr.plot(samp, observed=IarD, pop=namelist$population,
+FUNK:	poppr.plot
+3 0| file=namelist$File, pval=p.val, N=nrow(pop@tab))
+FUNK:	nrow
+2 0| }
+2 0| result <- 1:4
+2 0| result[c(1,3)] <- IarD
+2 0| result[c(2,4)] <- p.val
+2 0| names(result)  <- c("Ia","p.Ia","rbarD","p.rD")
+FUNK:	names
+1 0| }
+1 0| return(final(Iout, result))
+FUNK:	final
+0 0| }
+
+{ (| .pairwise.differences
+- -
+1 0| .pairwise.differences <- function(pop,numLoci,np, missing){
+1 0| temp.d.vector <- matrix(nrow=np, ncol=numLoci, data=as.numeric(NA))
+FUNK:	matrix
+FUNK:	as.numeric
+1 0| if( missing == "MEAN" )
+1 1| temp.d.vector <- matrix(nrow=np, ncol=numLoci,
+FUNK:	matrix
+1 3| data=vapply(vapply(pop, pairwisematrix,
+FUNK:	vapply
+FUNK:	vapply
+1 0| temp.d.vector[,1], np),round.poppr,1))
+1 0| else
+1 0| temp.d.vector <- vapply(pop, pairwisematrix, temp.d.vector[,1], np)
+FUNK:	vapply
+1 0| d.vector  <- as.vector(colSums(temp.d.vector))
+FUNK:	as.vector
+FUNK:	colSums
+1 0| d2.vector <- as.vector(colSums(temp.d.vector^2))
+FUNK:	as.vector
+FUNK:	colSums
+1 0| D.vector  <- as.vector(rowSums(temp.d.vector))
+FUNK:	as.vector
+FUNK:	rowSums
+1 0| vectors   <- list(d.vector=d.vector, d2.vector=d2.vector, D.vector=D.vector)
+FUNK:	list
+1 0| return(vectors)
+0 0| }
+
+{ (| pairwisematrix
+- -
+1 0| pairwisematrix <- function(pop, np){
+1 0| temp.d.vector <- vector(mode="numeric", length=np)
+FUNK:	vector
+1 0| if ( ncol(pop@tab) != 1 )
+FUNK:	ncol
+1 0| temp.d.vector <- as.numeric(colSums(.pairwise.diffs(t(pop@tab)), na.rm=TRUE))
+FUNK:	as.numeric
+FUNK:	colSums
+FUNK:	.pairwise.diffs
+FUNK:	t
+1 0| return(temp.d.vector)
+0 0| }
+
+{ (| .pairwise.diffs
+- -
+1 0| .pairwise.diffs <- function(x){
+1 0| stopifnot(is.matrix(x))
+FUNK:	is.matrix
+1 0| prs <- cbind(rep(1:ncol(x), each = ncol(x)), 1:ncol(x))
+FUNK:	cbind
+FUNK:	rep
+FUNK:	ncol
+FUNK:	ncol
+FUNK:	ncol
+1 0| col.diffs <- prs[prs[, 1] < prs[, 2], , drop = FALSE]
+1 0| result <- abs(x[, col.diffs[, 1]] - x[, col.diffs[, 2], drop = FALSE])
+FUNK:	abs
+1 0| return(result)
+0 0| }
+
+{ (| .pairwise.variances
+- -
+1 0| .pairwise.variances <- function(vard.vector, pair.alleles){
+1 0| vardpair.vector <- vector(length=pair.alleles)
+FUNK:	vector
+1 0| vardpair.vector <- sqrt(combn(vard.vector, 2, prod))
+FUNK:	sqrt
+FUNK:	combn
+1 0| return(vardpair.vector)
+0 0| }
+
+{ (| .Ia.Rd
+- -
+0 0| .Ia.Rd <- function (pop, missing = NULL)
+1 0| {
+1 0| vard.vector <- NULL
+1 0| numLoci     <- length(pop)
+FUNK:	length
+1 0| numIsolates <- length(pop[[1]]@ind.names)
+FUNK:	length
+1 0| np          <- choose(numIsolates, 2)
+FUNK:	choose
+2 0| if (np < 2) {
+2 0| return(as.numeric(c(NaN, NaN)))
+FUNK:	as.numeric
+1 0| }
+1 0| V               <- pair_diffs(pop, numLoci, np)
+FUNK:	pair_diffs
+1 0| varD            <- ((sum(V$D.vector^2) - ((sum(V$D.vector))^2)/np))/np
+FUNK:	sum
+FUNK:	sum
+1 0| vard.vector     <- ((V$d2.vector - ((V$d.vector^2)/np))/np)
+1 0| vardpair.vector <- .Call("pairwise_covar", vard.vector)
+FUNK:	.Call
+1 0| sigVarj         <- sum(vard.vector)
+FUNK:	sum
+1 0| rm(vard.vector)
+FUNK:	rm
+1 0| Ia              <- (varD/sigVarj) - 1
+1 0| rbarD           <- (varD - sigVarj)/(2 * sum(vardpair.vector))
+FUNK:	sum
+1 0| return(c(Ia, rbarD))
+0 0| }
+
+{ (| pair_diffs
+- -
+0 0| pair_diffs <- function(pop, numLoci, np)
+1 0| {
+1 0| ploid <- ploidy(pop[[1]])
+FUNK:	ploidy
+1 0| temp.d.vector <- matrix(nrow = np, ncol = numLoci, data = as.numeric(NA))
+FUNK:	matrix
+FUNK:	as.numeric
+1 1| temp.d.vector <- vapply(pop, function(x) .Call("pairdiffs", x@tab)*(ploid/2),
+FUNK:	vapply
+FUNK:	.Call
+1 0| temp.d.vector[, 1])
+1 0| d.vector  <- colSums(temp.d.vector)
+FUNK:	colSums
+1 0| d2.vector <- colSums(temp.d.vector^2)
+FUNK:	colSums
+1 0| D.vector  <- rowSums(temp.d.vector)
+FUNK:	rowSums
+1 0| return(list(d.vector = d.vector, d2.vector = d2.vector, D.vector = D.vector))
+FUNK:	list
+0 0| }
+
+{ (| .new_counter
+- -
+1 0| .new_counter <- function() {
+1 0| i <- 0
+2 0| function() {
+2 0| i <<- i + 1
+2 0| i
+1 0| }
+0 0| }
+
+{ (| phylo.bruvo.dist
+- -
+1 0| phylo.bruvo.dist <- function(ssr.matrix, replen=c(2), ploid=2){
+1 0| indnames <- rownames(ssr.matrix)
+FUNK:	rownames
+1 0| ssr.matrix <- apply(ssr.matrix, 1, strsplit, "/")
+FUNK:	apply
+1 0| ssr.matrix <- apply(as.matrix(t(sapply(ssr.matrix, unlist))), 2, as.numeric)
+FUNK:	apply
+FUNK:	as.matrix
+FUNK:	t
+FUNK:	sapply
+1 0| ssr.matrix <- apply(ssr.matrix / rep(replen, each=ploid*nrow(ssr.matrix)), 2, round)
+FUNK:	apply
+FUNK:	rep
+FUNK:	nrow
+1 0| perms <- .Call("permuto", ploid)
+FUNK:	.Call
+1 0| distmat <- .Call("bruvo_distance", ssr.matrix, perms, ploid)
+FUNK:	.Call
+1 0| distmat[distmat == 100] <- NA
+1 0| avg.dist.vec <- apply(distmat, 1, mean, na.rm=TRUE)
+FUNK:	apply
+1 0| dist.mat <- matrix(ncol=nrow(ssr.matrix), nrow=nrow(ssr.matrix))
+FUNK:	matrix
+FUNK:	nrow
+FUNK:	nrow
+1 0| dist.mat[which(lower.tri(dist.mat)==TRUE)] <- avg.dist.vec
+FUNK:	which
+FUNK:	lower.tri
+1 0| dist.mat <- as.dist(dist.mat)
+FUNK:	as.dist
+1 0| attr(dist.mat, "labels") <- indnames
+FUNK:	attr
+1 0| return(dist.mat)
+0 0| }
+
+{ (| adjustcurve
+- -
+1 0| adjustcurve <- function(weights, glim = c(0,0.8), correction = 3, show=FALSE){
+1 0| w    <- weights
+1 0| maxg <- max(glim)
+FUNK:	max
+1 0| ming <- 1-(min(glim)/maxg)
+FUNK:	min
+2 0| if (correction < 0){
+2 0| adj <- (w^abs(correction))/(1/ming)
+FUNK:	abs
+2 0| adj <- (adj + 1-ming) / ((1 / maxg))
+2 0| } else {
+2 0| adj <- (1 - (((1-w)^abs(correction))/(1/ming)) )
+FUNK:	abs
+2 0| adj <- adj / (1/maxg)
+1 0| }
+2 0| if (show == FALSE){
+2 0| return(adj)
+2 0| } else {
+2 0| cols <- grey(sort(adj))
+FUNK:	grey
+FUNK:	sort
+2 1| hist(w, col=cols, border=NA, breaks=w, ylim=0:1, xlab="Observed Value",
+FUNK:	hist
+2 1| ylab="Grey Adjusted",
+2 2| main=paste("Grey adjustment\n min:", min(glim), "max:", max(glim),
+FUNK:	paste
+FUNK:	min
+FUNK:	max
+2 0| "adjust:",abs(correction)))
+FUNK:	abs
+2 0| points(x=w, y=adj, col=grey(rev(adj)), pch=20)
+FUNK:	points
+FUNK:	grey
+FUNK:	rev
+3 0| if (correction < 0){
+3 6| text(bquote(frac(bgroup("(",frac(scriptstyle(x)^.(abs(correction)),
+FUNK:	text
+FUNK:	bquote
+FUNK:	frac
+FUNK:	bgroup
+FUNK:	frac
+FUNK:	scriptstyle
+FUNK:	.
+FUNK:	abs
+3 3| .(ming)^-1),")") + .(1-ming),
+FUNK:	.
+FUNK:	.
+3 1| .(maxg)^-1)) ,
+FUNK:	.
+3 0| x=0.25,y=0.75, col="red")
+3 0| } else {
+3 6| text(bquote(frac(1-bgroup("(",frac((1-scriptstyle(x))^.(abs(correction)),
+FUNK:	text
+FUNK:	bquote
+FUNK:	frac
+FUNK:	bgroup
+FUNK:	frac
+FUNK:	scriptstyle
+FUNK:	.
+FUNK:	abs
+3 3| .(ming)^-1),")"),
+FUNK:	.
+3 1| .(maxg)^-1)) ,
+FUNK:	.
+3 0| x=0.15,y=0.75, col="red")
+2 0| }
+2 0| lines(x=0:1, y=c(min(glim),min(glim)), col="yellow")
+FUNK:	lines
+FUNK:	min
+FUNK:	min
+2 0| lines(x=0:1, y=c(max(glim),max(glim)), col="yellow")
+FUNK:	lines
+FUNK:	max
+FUNK:	max
+1 0| }
+0 0| }
+
+{ (| guesslengths
+- -
+1 0| guesslengths <- function(vec){
+2 0| if (length(vec) > 1){
+FUNK:	length
+2 0| lens <- vapply(2:length(vec), function(x) abs(vec[x] - vec[x - 1]), 1)
+FUNK:	vapply
+FUNK:	length
+FUNK:	abs
+3 0| if (all(lens == 1)){
+FUNK:	all
+3 0| return(1)
+3 0| } else {
+3 0| return(min(lens[lens > 1]))
+FUNK:	min
+2 0| }
+2 0| } else {
+2 0| return(1)
+1 0| }
+0 0| }
+
+{ (| test_table
+- -
+1 0| test_table <- function(loc, min_ind, n){
+1 0| tab <- table(loc)
+FUNK:	table
+1 0| return(ifelse(any(tab > n - min_ind), FALSE, TRUE))
+FUNK:	ifelse
+FUNK:	any
+0 0| }
+
+{ (| fix_negative_branch
+- -
+1 0| fix_negative_branch <- function(tre){
+1 0| all.lengths <- data.frame(tre$edge,tre$edge.length)
+FUNK:	data.frame
+1 0| zero.edges  <- all.lengths[tre$edge.length < 0, ]
+1 0| all.edges   <- all.lengths[all.lengths$X1 %in% zero.edges$X1, ]
+1 0| index.table <- all.edges[order(all.edges[,1]), ]
+FUNK:	order
+2 0| for (i in (unique(index.table$X1))){
+FUNK:	unique
+2 0| index.table$tre.edge.length[index.table$X1 == i] <- abs(index.table$tre.edge.length[index.table$X1 == i]) + min(index.table$tre.edge.length[index.table$X1 == i])
+FUNK:	abs
+FUNK:	min
+1 0| }
+1 0| all.lengths$tre.edge.length[rownames(all.lengths) %in% rownames(index.table)] <- index.table$tre.edge.length
+FUNK:	rownames
+FUNK:	rownames
+1 0| tre$edge.length <- all.lengths$tre.edge.length
+1 0| return(tre)
+0 0| }
+
+{ (| singlepop_msn
+- -
+0 1| singlepop_msn <- function(pop, vertex.label, replen = NULL, distmat = NULL, gscale = TRUE,
+1 0| glim = c(0, 0.8), gadj = 3, wscale = TRUE, palette = topo.colors, ...){
+1 0| cpop <- pop[.clonecorrector(pop), ]
+FUNK:	.clonecorrector
+1 0| mlg.number <- table(pop$other$mlg.vec)[rank(cpop$other$mlg.vec)]
+FUNK:	table
+FUNK:	rank
+2 0| if (is.null(distmat) & !is.null(replen)){
+FUNK:	is.null
+FUNK:	is.null
+2 0| distmat <- as.matrix(bruvo.dist(cpop, replen=replen))
+FUNK:	as.matrix
+FUNK:	bruvo.dist
+1 0| }
+1 0| g   <- graph.adjacency(distmat, weighted=TRUE, mode="undirected")
+FUNK:	graph.adjacency
+1 0| mst <- minimum.spanning.tree(g, algorithm="prim", weights=E(g)$weight)
+FUNK:	minimum.spanning.tree
+FUNK:	E
+2 0| if (!is.na(vertex.label[1]) & length(vertex.label) == 1){
+FUNK:	is.na
+FUNK:	length
+3 0| if (toupper(vertex.label) == "MLG"){
+FUNK:	toupper
+3 0| vertex.label <- paste0("MLG.", cpop$other$mlg.vec)
+FUNK:	paste0
+3 0| } else if(toupper(vertex.label) == "INDS") {
+FUNK:	toupper
+3 0| vertex.label <- cpop$ind.names
+2 0| }
+1 0| }
+2 0| if (gscale == TRUE){
+2 2| E(mst)$color <- gray(adjustcurve(E(mst)$weight, glim=glim, correction=gadj,
+FUNK:	E
+FUNK:	gray
+FUNK:	adjustcurve
+FUNK:	E
+2 0| show=FALSE))
+2 0| } else {
+2 0| E(mst)$color <- rep("black", length(E(mst)$weight))
+FUNK:	E
+FUNK:	rep
+FUNK:	length
+FUNK:	E
+1 0| }
+1 0| edgewidth <- 2
+2 0| if (wscale == TRUE){
+2 0| edgewidth <- 1/(E(mst)$weight)
+FUNK:	E
+3 0| if (any(E(mst)$weight < 0.08)){
+FUNK:	any
+FUNK:	E
+3 0| edgewidth <- 1/(E(mst)$weight + 0.08)
+FUNK:	E
+2 0| }
+1 0| }
+1 0| populations <- ifelse(is.null(pop(pop)), NA, pop$pop.names)
+FUNK:	ifelse
+FUNK:	is.null
+FUNK:	pop
+1 1| plot.igraph(mst, edge.width = edgewidth, edge.color = E(mst)$color,
+FUNK:	plot.igraph
+FUNK:	E
+1 1| vertex.label = vertex.label, vertex.size = mlg.number*3,
+1 0| vertex.color = palette(1),  ...)
+FUNK:	palette
+1 1| legend(-1.55,1,bty = "n", cex = 0.75,
+FUNK:	legend
+1 1| legend = populations, title = "Populations", fill = palette(1),
+FUNK:	palette
+1 0| border = NULL)
+1 0| E(mst)$width <- edgewidth
+FUNK:	E
+1 0| V(mst)$size  <- mlg.number
+FUNK:	V
+1 0| V(mst)$color <- palette(1)
+FUNK:	V
+FUNK:	palette
+1 0| V(mst)$label <- vertex.label
+FUNK:	V
+1 0| return(list(graph = mst, populations = populations, colors = palette(1)))
+FUNK:	list
+FUNK:	palette
+0 0| }
+
+{ (| bruvos_distance
+- -
+1 0| bruvos_distance <- function(bruvomat, funk_call = match.call()){
+FUNK:	match.call
+1 0| x      <- bruvomat@mat
+1 0| ploid  <- bruvomat@ploidy
+1 0| replen <- bruvomat@replen
+1 0| x[is.na(x)] <- 0
+FUNK:	is.na
+1 0| x <- x / rep(replen, each=ploid*nrow(x))
+FUNK:	rep
+FUNK:	nrow
+1 0| x <- matrix(as.integer(round(x)), ncol=ncol(x))
+FUNK:	matrix
+FUNK:	as.integer
+FUNK:	round
+FUNK:	ncol
+1 0| perms <- .Call("permuto", ploid)
+FUNK:	.Call
+1 0| distmat <- .Call("bruvo_distance", x, perms, ploid)
+FUNK:	.Call
+1 0| distmat[distmat == 100] <- NA
+1 0| avg.dist.vec <- apply(distmat, 1, mean, na.rm=TRUE)
+FUNK:	apply
+1 0| dist.mat <- matrix(ncol=nrow(x), nrow=nrow(x))
+FUNK:	matrix
+FUNK:	nrow
+FUNK:	nrow
+1 0| dist.mat[which(lower.tri(dist.mat)==TRUE)] <- avg.dist.vec
+FUNK:	which
+FUNK:	lower.tri
+1 0| dist.mat <- as.dist(dist.mat)
+FUNK:	as.dist
+1 0| attr(dist.mat, "labels") <- bruvomat@ind.names
+FUNK:	attr
+1 0| attr(dist.mat, "method") <- "Bruvo"
+FUNK:	attr
+1 0| attr(dist.mat, "call")   <- funk_call
+FUNK:	attr
+1 0| return(dist.mat)
+0 0| }
+
+File:	mlg.r ================================================================>
+0 0| NULL
+
+{ (| mlg
+- -
+1 0| mlg <- function(pop, quiet=FALSE){
+2 0| if(!is.genind(pop)){
+FUNK:	is.genind
+2 0| stop("x is not a genind object")
+1 0| }
+2 0| if(nrow(pop@tab)==1){
+FUNK:	nrow
+2 0| derp <- 1
+1 0| }
+2 0| else {
+2 0| derp <- nrow(unique(pop@tab[,1:ncol(pop@tab)]))
+FUNK:	nrow
+FUNK:	unique
+FUNK:	ncol
+1 0| }
+2 0| if(quiet!=TRUE){
+2 0| cat("#############################\n")
+2 0| cat("# Number of Individuals: "); cat(length(pop@ind.names),"\n")
+FUNK:	length
+2 0| cat("# Number of MLG: "); cat(derp,"\n")
+2 0| cat("#############################\n")
+1 0| }
+1 0| return(derp)
+0 0| }
+
+{ (| mlg.table
+- -
+0 1| mlg.table <- function(pop, sublist="ALL", blacklist=NULL, mlgsub=NULL, bar=TRUE,
+1 0| total=FALSE, quiet=FALSE){
+2 0| if(!is.genind(pop)){
+FUNK:	is.genind
+2 0| stop("This function requires a genind object.")
+1 0| }
+1 0| mlgtab <- mlg.matrix(pop)
+FUNK:	mlg.matrix
+2 0| if(!is.null(mlgsub)){
+FUNK:	is.null
+2 0| mlgtab <- mlgtab[, mlgsub]
+2 0| mlgtab <- mlgtab[which(rowSums(mlgtab) > 0), ]
+FUNK:	which
+FUNK:	rowSums
+2 0| pop <- popsub(pop, sublist=rownames(mlgtab))
+FUNK:	popsub
+FUNK:	rownames
+1 0| }
+2 0| if(sublist[1] != "ALL" | !is.null(blacklist)){
+FUNK:	is.null
+2 0| pop <- popsub(pop, sublist, blacklist)
+FUNK:	popsub
+2 2| mlgtab <- mlgtab[unlist(vapply(pop@pop.names,
+FUNK:	unlist
+FUNK:	vapply
+2 0| function(x) which(rownames(mlgtab)==x), 1)), , drop=FALSE]
+FUNK:	which
+FUNK:	rownames
+1 0| }
+2 0| if(total==TRUE & (nrow(mlgtab) > 1 | !is.null(nrow(mlgtab)) )){
+FUNK:	nrow
+FUNK:	is.null
+FUNK:	nrow
+2 0| mlgtab <- rbind(mlgtab, colSums(mlgtab))
+FUNK:	rbind
+FUNK:	colSums
+2 0| rownames(mlgtab)[nrow(mlgtab)] <- "Total"
+FUNK:	rownames
+FUNK:	nrow
+1 0| }
+2 0| if(bar){
+
+{ (| plot1
+- -
+3 0| plot1 <- function(mlgt){
+3 2| mlgt.df <- as.data.frame(list(MLG = rep(colnames(mlgt), mlgt),
+FUNK:	as.data.frame
+FUNK:	list
+FUNK:	rep
+FUNK:	colnames
+3 0| count = rep(mlgt, mlgt)))
+FUNK:	rep
+3 0| mlgt.df[["MLG"]] <- reorder(mlgt.df[["MLG"]], -mlgt.df[["count"]])
+FUNK:	reorder
+3 0| return(ggplot(mlgt.df, aes_string(x = "MLG")) + geom_bar(aes_string(fill = "count"), position="identity"))
+FUNK:	ggplot
+FUNK:	aes_string
+FUNK:	geom_bar
+FUNK:	aes_string
+2 0| }
+3 0| if(!is.null(pop@pop.names)){
+FUNK:	is.null
+3 0| popnames <- pop@pop.names
+3 0| if(total & nrow(mlgtab) > 1)
+FUNK:	nrow
+3 0| popnames[length(popnames)+1] <- "Total"
+FUNK:	length
+
+{ (| printplot
+- -
+4 0| printplot <- function(n, quiet=quiet) {
+4 0| if(!quiet) cat("|",n,"\n")
+4 0| mlgt <- mlgtab[n, mlgtab[n, ] > 0, drop=FALSE]
+5 0| if (sum(mlgtab[n, ]) > 1){
+FUNK:	sum
+5 1| print(plot1(mlgt) +
+FUNK:	print
+FUNK:	plot1
+5 1| theme_classic() %+replace%
+FUNK:	theme_classic
+5 1| theme(axis.text.x=element_text(size = 10, angle=-45, hjust=0, vjust=1)) +
+FUNK:	theme
+FUNK:	element_text
+5 3| labs(title=paste("Population:",n,"\nN =",sum(mlgtab[n, ]),
+FUNK:	labs
+FUNK:	paste
+FUNK:	sum
+5 0| "MLG =",length(mlgt))))
+FUNK:	length
+4 0| }
+3 0| }
+3 0| invisible(lapply(popnames, printplot, quiet=quiet))
+FUNK:	invisible
+FUNK:	lapply
+2 0| }
+3 0| else {
+3 1| print(plot1(mlgtab) +
+FUNK:	print
+FUNK:	plot1
+3 1| theme_classic() %+replace%
+FUNK:	theme_classic
+3 3| theme(axis.text.x=element_text(size = 10, angle=-45, hjust=0,
+FUNK:	theme
+FUNK:	element_text
+3 1| vjust=1)) +
+3 3| labs(title= paste("File:",as.character(pop@call[2]),
+FUNK:	labs
+FUNK:	paste
+FUNK:	as.character
+3 2| "\nN =",sum(mlgtab),"MLG =",length(mlgtab))
+FUNK:	sum
+FUNK:	length
+3 0| ))
+2 0| }
+1 0| }
+1 0| mlgtab <- mlgtab[, which(colSums(mlgtab) > 0)]
+FUNK:	which
+FUNK:	colSums
+1 0| return(mlgtab)
+0 0| }
+
+{ (| mlg.vector
+- -
+1 0| mlg.vector <- function(pop){
+1 0| xtab <- pop@tab
+1 2| xsort <- vapply(seq(nrow(xtab)),function(x) paste(xtab[x, ]*pop@ploidy,
+FUNK:	vapply
+FUNK:	seq
+FUNK:	nrow
+FUNK:	paste
+1 0| collapse=""), "string")
+1 0| countvec <- vector(length=length(xsort), mode="numeric")
+FUNK:	vector
+FUNK:	length
+1 0| xsorted <- sort(xsort, index.return=TRUE)
+FUNK:	sort
+
+{ (| f1
+- -
+2 0| f1 <- function(num, comp){
+3 0| if(num-1 == 0){
+3 0| countvec[num] <<- 1
+2 0| }
+3 0| else if(comp[num] == comp[num-1]){
+3 0| countvec[num] <<- countvec[num-1]
+2 0| }
+3 0| else{
+3 0| countvec[num] <<- countvec[num-1] + 1
+2 0| }
+1 0| }
+1 0| lapply(1:length(xsorted$x), f1, xsorted$x)
+FUNK:	lapply
+FUNK:	length
+1 0| countvec2 <- 1:length(xsort)
+FUNK:	length
+1 0| countvec2[xsorted$ix] <- countvec
+1 0| return(countvec2)
+0 0| }
+
+{ (| mlg.crosspop
+- -
+1 0| mlg.crosspop <- function(pop, sublist="ALL", blacklist=NULL, mlgsub=NULL, indexreturn=FALSE, df=FALSE, quiet=FALSE){
+2 0| if(length(sublist) == 1 & sublist[1] != "ALL" | is.null(pop(pop))){
+FUNK:	length
+FUNK:	is.null
+FUNK:	pop
+2 0| cat("Multiple populations are needed for this analysis.\n")
+2 0| return(0)
+1 0| }
+1 0| vec <- mlg.vector(pop)
+FUNK:	mlg.vector
+1 0| subind <- sub_index(pop, sublist, blacklist)
+FUNK:	sub_index
+1 0| vec <- vec[subind]
+1 0| mlgtab <- mlg.matrix(pop)
+FUNK:	mlg.matrix
+2 0| if(!is.null(mlgsub)){
+FUNK:	is.null
+2 0| mlgtab <- mlgtab[, mlgsub]
+2 0| mlgs <- 1:ncol(mlgtab)
+FUNK:	ncol
+2 0| names(mlgs) <- colnames(mlgtab)
+FUNK:	names
+FUNK:	colnames
+1 0| }
+2 0| else{
+3 0| if(sublist[1] != "ALL" | !is.null(blacklist)){
+FUNK:	is.null
+3 0| pop <- popsub(pop, sublist, blacklist)
+FUNK:	popsub
+3 2| mlgtab <- mlgtab[unlist(vapply(pop@pop.names,
+FUNK:	unlist
+FUNK:	vapply
+3 0| function(x) which(rownames(mlgtab)==x), 1)), , drop=FALSE]
+FUNK:	which
+FUNK:	rownames
+2 0| }
+2 2| mlgs <- unlist(strsplit(names(which(colSums(ifelse(mlgtab==0, 0, 1)) > 1)),
+FUNK:	unlist
+FUNK:	strsplit
+FUNK:	names
+FUNK:	which
+FUNK:	colSums
+FUNK:	ifelse
+2 0| "\\."))
+2 0| mlgs <- as.numeric(mlgs[!mlgs %in% "MLG"])
+FUNK:	as.numeric
+3 0| if(length(mlgs) == 0){
+FUNK:	length
+3 0| cat("No multilocus genotypes were detected across populations\n")
+3 0| return(0)
+2 0| }
+2 0| names(mlgs) <- paste("MLG", mlgs, sep=".")
+FUNK:	names
+FUNK:	paste
+3 0| if(indexreturn){
+3 0| return(mlgs)
+2 0| }
+1 0| }
+
+{ (| popop
+- -
+2 0| popop <- function(x, quiet=TRUE){
+2 0| popnames <- mlgtab[mlgtab[, x] > 0, x]
+3 0| if(length(popnames) == 1){
+FUNK:	length
+3 0| names(popnames) <- rownames(mlgtab[mlgtab[, x] > 0, x, drop=FALSE])
+FUNK:	names
+FUNK:	rownames
+2 0| }
+2 0| if(!quiet)
+2 1| cat(paste(x, ":", sep=""),paste("(",sum(popnames)," inds)", sep=""),
+FUNK:	paste
+FUNK:	paste
+FUNK:	sum
+2 0| names(popnames), fill=80)
+FUNK:	names
+2 0| return(popnames)
+1 0| }
+1 0| mlgtab <- mlgtab[rowSums(mlgtab[, mlgs, drop=FALSE]) > 0, mlgs, drop=FALSE]
+FUNK:	rowSums
+1 0| mlg.dup <- lapply(colnames(mlgtab), popop, quiet=quiet)
+FUNK:	lapply
+FUNK:	colnames
+1 0| names(mlg.dup) <- colnames(mlgtab)
+FUNK:	names
+FUNK:	colnames
+2 0| if(df == TRUE){
+2 2| mlg.dup <- as.data.frame(list(MLG = rep(names(mlg.dup), sapply(mlg.dup, length)),
+FUNK:	as.data.frame
+FUNK:	list
+FUNK:	rep
+FUNK:	names
+FUNK:	sapply
+2 2| Population = unlist(lapply(mlg.dup, names)),
+FUNK:	unlist
+FUNK:	lapply
+2 0| Count = unlist(mlg.dup)))
+FUNK:	unlist
+2 0| rownames(mlg.dup) <- NULL
+FUNK:	rownames
+1 0| }
+1 0| return(mlg.dup)
+0 0| }
+
+File:	sample_schemes.r =====================================================>
+
+{ (| shufflepop
+- -
+1 0| shufflepop <- function(pop, method=1){
+1 1| METHODS = c("permute alleles", "parametric bootstrap",
+1 0| "non-parametric bootstrap", "multilocus")
+2 0| if (all((1:4)!=method)) {
+FUNK:	all
+2 0| cat("1 = Permute Alleles (maintain allelic structure)\n")
+2 0| cat("2 = Parametric Bootstrap (simulate new population based on allelic frequency)\n")
+2 0| cat("3 = Non-Parametric Bootstrap (simulate new population)\n")
+2 0| cat("4 = Multilocus style (maintain heterozygosity and allelic structure)\n")
+2 0| cat("Select an integer (1, 2, 3, or 4): ")
+2 0| method <- as.integer(readLines(n = 1))
+FUNK:	as.integer
+FUNK:	readLines
+1 0| }
+2 0| if (all((1:4)!=method)){
+FUNK:	all
+2 0| stop ("Non convenient method number")
+1 0| }
+2 0| if(pop@type == "PA"){
+3 0| if(method == 1 | method == 4){
+3 1| pop@tab <- vapply(1:ncol(pop@tab),
+FUNK:	vapply
+FUNK:	ncol
+3 0| function(x) sample(pop@tab[, x]), pop@tab[, 1])
+FUNK:	sample
+2 0| }
+3 0| else if(method == 2){
+
+{ (| paramboot
+- -
+4 0| paramboot <- function(x){
+4 0| one <- mean(pop@tab[, x], na.rm=TRUE)
+FUNK:	mean
+4 0| zero <- 1-one
+4 0| return(sample(c(1,0), length(pop@tab[, x]), prob=c(one, zero), replace=TRUE))
+FUNK:	sample
+FUNK:	length
+3 0| }
+3 0| pop@tab <- vapply(1:ncol(pop@tab), paramboot, pop@tab[, 1])
+FUNK:	vapply
+FUNK:	ncol
+2 0| }
+3 0| else if(method == 3){
+3 1| pop@tab <- vapply(1:ncol(pop@tab),
+FUNK:	vapply
+FUNK:	ncol
+3 0| function(x) sample(pop@tab[, x], replace=TRUE), pop@tab[, 1])
+FUNK:	sample
+2 0| }
+2 0| } else {
+
+{ (| addpop
+- -
+3 0| addpop <- function(locus="L1", pop, method=method){
+3 0| pop@tab[, pop@loc.fac %in% locus] <<- .locus.shuffler(pop[, loc=locus], method=method)@tab
+FUNK:	.locus.shuffler
+2 0| }
+2 0| invisible(lapply(names(pop@loc.names), addpop, pop, method))
+FUNK:	invisible
+FUNK:	lapply
+FUNK:	names
+1 0| }
+1 0| return(pop)
+0 0| }
+
+{ (| shufflefunk
+- -
+1 0| shufflefunk <- function(pop, FUN, sample=1, method=1, ...){
+1 0| FUN <- match.fun(FUN)
+FUNK:	match.fun
+1 0| lapply(1:sample, function(x) FUN(shufflepop(pop, method=method), ...))
+FUNK:	lapply
+FUNK:	FUN
+FUNK:	shufflepop
+0 0| }
+
+{ (| .sampling
+- -
+0 1| .sampling <- function(pop, iterations, quiet=FALSE, missing="ignore", type=type,
+1 0| method=1){
+1 1| METHODS = c("permute alleles", "parametric bootstrap",
+1 0| "non-parametric bootstrap", "multilocus")
+2 0| if(!is.list(pop)){
+FUNK:	is.list
+3 0| if(type=="PA"){
+3 0| .Ia.Rd <- .PA.Ia.Rd
+2 0| }
+1 0| }
+1 3| sample.data <- data.frame(list(Ia = vector(mode = "numeric",
+FUNK:	data.frame
+FUNK:	list
+FUNK:	vector
+1 2| length = iterations),
+1 3| rbarD = vector(mode = "numeric",
+FUNK:	vector
+1 2| length = iterations)
+1 1| )
+1 0| )
+1 0| if(!quiet) progbar <- txtProgressBar(style = 3)
+FUNK:	txtProgressBar
+2 0| for (c in 1:iterations){
+2 0| IarD <- .Ia.Rd(.all.shuffler(pop, type, method=method), missing=missing)
+FUNK:	.Ia.Rd
+FUNK:	.all.shuffler
+2 0| sample.data$Ia[c]    <- IarD[1]
+2 0| sample.data$rbarD[c] <- IarD[2]
+3 0| if (!quiet){
+3 0| setTxtProgressBar(progbar, c/iterations)
+FUNK:	setTxtProgressBar
+2 0| }
+1 0| }
+1 0| if(!quiet) close(progbar)
+FUNK:	close
+1 0| return(sample.data)
+0 0| }
+
+{ (| .all.shuffler
+- -
+1 0| .all.shuffler <- function(pop, type=type, method=1){
+1 1| METHODS = c("permute alleles", "parametric bootstrap",
+1 0| "non-parametric bootstrap", "multilocus")
+2 0| if(type=="PA"){
+3 0| if(method == 1 | method == 4){
+3 1| pop@tab <- vapply(1:ncol(pop@tab),
+FUNK:	vapply
+FUNK:	ncol
+3 0| function(x) sample(pop@tab[, x]), pop@tab[, 1])
+FUNK:	sample
+2 0| }
+3 0| else if(method == 2){
+
+{ (| paramboot
+- -
+4 0| paramboot <- function(x){
+4 0| one <- mean(pop@tab[, x], na.rm=TRUE)
+FUNK:	mean
+4 0| zero <- 1-one
+4 0| return(sample(c(1,0), length(pop@tab[, x]), prob=c(one, zero), replace=TRUE))
+FUNK:	sample
+FUNK:	length
+3 0| }
+3 0| pop@tab <- vapply(1:ncol(pop@tab), paramboot, pop@tab[, 1])
+FUNK:	vapply
+FUNK:	ncol
+2 0| }
+3 0| else if(method == 3){
+3 1| pop@tab <- vapply(1:ncol(pop@tab),
+FUNK:	vapply
+FUNK:	ncol
+3 0| function(x) sample(pop@tab[, x], replace=TRUE), pop@tab[, 1])
+FUNK:	sample
+2 0| }
+1 0| }
+2 0| else {
+2 0| pop <- lapply(pop, .locus.shuffler, method=method)
+FUNK:	lapply
+1 0| }
+1 0| return(pop)
+0 0| }
+
+{ (| .locus.shuffler
+- -
+1 0| .locus.shuffler <- function(pop, method=1){
+1 1| METHODS = c("permute alleles", "parametric bootstrap",
+1 0| "non-parametric bootstrap", "multilocus")
+2 0| if( ncol(pop@tab) > 1 ){
+FUNK:	ncol
+2 0| if(method == 4)
+2 0| pop@tab <- .both.shuff(pop@tab)
+FUNK:	.both.shuff
+2 0| else if(method == 1)
+2 0| pop@tab <- .permut.shuff(pop@tab, ploidy(pop))
+FUNK:	.permut.shuff
+FUNK:	ploidy
+3 0| else if(method == 2){
+3 0| weights <- colMeans(pop@tab, na.rm = TRUE)
+FUNK:	colMeans
+3 0| pop@tab <- t(rmultinom(nrow(pop@tab), size = ploidy(pop), prob = weights))/ ploidy(pop)
+FUNK:	t
+FUNK:	rmultinom
+FUNK:	nrow
+FUNK:	ploidy
+FUNK:	ploidy
+2 0| }
+3 0| else if(method == 3){
+3 0| weights <- rep(1, ncol(pop@tab))
+FUNK:	rep
+FUNK:	ncol
+3 0| pop@tab <- t(rmultinom(nrow(pop@tab), size = ploidy(pop), prob = weights))/ ploidy(pop)
+FUNK:	t
+FUNK:	rmultinom
+FUNK:	nrow
+FUNK:	ploidy
+FUNK:	ploidy
+2 0| }
+1 0| }
+1 0| return(pop)
+0 0| }
+
+{ (| .diploid.shuff
+- -
+1 0| .diploid.shuff <- function(vec, weights){
+1 0| temp <- sample(length(vec), 2, replace=TRUE, prob = weights)
+FUNK:	sample
+FUNK:	length
+1 0| vec <- vector(mode="numeric", length=length(vec))
+FUNK:	vector
+FUNK:	length
+1 0| vec[temp[1]] <- 0.5
+1 0| vec[temp[2]] <- vec[temp[2]] + 0.5
+1 0| return(vec)
+0 0| }
+
+{ (| .permut.shuff
+- -
+1 0| .permut.shuff <- function(mat, ploidy = 2){
+1 0| bucket     <- colSums(mat, na.rm = TRUE)*ploidy
+FUNK:	colSums
+1 0| bucketlist <- as.integer(sample(rep(1:length(bucket), bucket)))
+FUNK:	as.integer
+FUNK:	sample
+FUNK:	rep
+FUNK:	length
+1 0| mat        <- .Call("permute_shuff", mat, bucketlist - 1, 1/ploidy, ploidy)
+FUNK:	.Call
+1 0| return(mat)
+0 0| }
+
+{ (| .both.shuff
+- -
+1 0| .both.shuff <- function(mat){
+1 0| mat <- mat[sample(nrow(mat)), ]
+FUNK:	sample
+FUNK:	nrow
+1 0| return(mat)
+0 0| }
+
+File:	sandbox.r ============================================================>
+
+{ (| pair_ia
+- -
+1 0| pair_ia <- function(pop){
+2 0| if(pop@type == "codom"){
+2 0| pop_loci <- seploc(pop)
+FUNK:	seploc
+2 0| loci_pairs <- combn(pop@loc.names, 2)
+FUNK:	combn
+2 0| pair_ia_vector <- apply(loci_pairs, 2, function(x) .Ia.Rd(pop_loci[x]))
+FUNK:	apply
+FUNK:	.Ia.Rd
+2 0| colnames(pair_ia_vector) <- apply(loci_pairs, 2, paste, collapse = ":")
+FUNK:	colnames
+FUNK:	apply
+1 0| }
+2 0| else{
+2 0| loci_pairs <- combn(1:nLoc(pop), 2)
+FUNK:	combn
+FUNK:	nLoc
+2 0| pair_ia_vector <- apply(loci_pairs, 2, function(x) .PA.Ia.Rd(pop[, x], missing = "ignore"))
+FUNK:	apply
+FUNK:	.PA.Ia.Rd
+2 0| colnames(pair_ia_vector) <- apply(combn(pop@loc.names, 2), 2, paste, collapse = ":")
+FUNK:	colnames
+FUNK:	apply
+FUNK:	combn
+1 0| }
+1 0| rownames(pair_ia_vector) <- c("Ia", "rbarD")
+FUNK:	rownames
+1 0| return(pair_ia_vector)
+0 0| }
+
+{ (| poppr_pair_ia
+- -
+1 0| poppr_pair_ia <- function(pop){
+2 0| if(is.null(pop(pop))){
+FUNK:	is.null
+FUNK:	pop
+2 0| return(pair_ia(pop))
+FUNK:	pair_ia
+1 0| }
+1 0| pops <- seppop(pop, drop = FALSE)
+FUNK:	seppop
+1 0| loci_pairs <- choose(nLoc(pop), 2)
+FUNK:	choose
+FUNK:	nLoc
+1 0| res_mat <- matrix(0.5, 2, loci_pairs)
+FUNK:	matrix
+1 0| pops_array <- vapply(pops, pair_ia, res_mat)
+FUNK:	vapply
+1 0| return(pops_array)
+0 0| }
+
+{ (| testing_funk
+- -
+1 0| testing_funk <- function(){
+1 0| cat("This test worked...maybe.\n")
+0 0| }
+
+{ (| .new.sampling
+- -
+1 0| .new.sampling <- function(pop,iterations,quiet="noisy",missing="ignore",type=type, method=1){
+1 1| METHODS = c("multilocus", "permute alleles", "parametric bootstrap",
+1 0| "non-parametric bootstrap")
+2 0| if(!is.list(pop)){
+FUNK:	is.list
+3 0| if(type=="PA"){
+3 0| .Ia.Rd <- .PA.Ia.Rd
+2 0| }
+1 0| }
+1 0| sample.data <- NULL
+2 0| for (c in 1:iterations){
+2 0| IarD <- .Ia.Rd(total.shuffler(pop, method=method), missing=missing)
+FUNK:	.Ia.Rd
+FUNK:	total.shuffler
+2 3| sample.data <- rbind(sample.data, as.data.frame(list(
+FUNK:	rbind
+FUNK:	as.data.frame
+FUNK:	list
+2 3| Ia=IarD[1],
+2 3| rbarD=IarD[2]
+2 0| )))
+3 0| if (quiet != TRUE){
+4 0| if(quiet == "noisy"){
+4 0| cat("Sample: ",c,"\n")
+4 0| cat("Index of Association: ", IarD[1],"\n")
+4 0| cat("Standardized Index of Association (rbarD): ", IarD[2],"\n")
+3 0| }
+4 0| else{
+5 0| if(c%%50 != 0){
+5 0| cat(".")
+6 0| if (c == iterations){
+6 0| cat("\n")
+5 0| }
+4 0| }
+5 0| else{
+5 0| cat(".")
+5 0| cat("\n")
+4 0| }
+3 0| }
+2 0| }
+1 0| }
+1 0| return(sample.data)
+0 0| }
+
+{ (| new.poppr
+- -
+0 1| new.poppr <- function(pop,total=TRUE,sublist=c("ALL"),blacklist=c(NULL), sample=0,
+0 1| method=1,missing="ignore", quiet=FALSE,clonecorrect=FALSE,hier=c(1),dfname="hier",
+1 0| hist=TRUE, minsamp=10){
+1 1| METHODS = c("multilocus", "permute alleles", "parametric bootstrap",
+1 0| "non-parametric bootstrap")
+1 1| x <- .file.type(pop, missing=missing, clonecorrect=clonecorrect, hier=hier,
+FUNK:	.file.type
+1 0| dfname=dfname, quiet=TRUE)
+1 0| namelist <- NULL
+1 0| callpop <- match.call()
+FUNK:	match.call
+2 0| if(!is.na(grep("system.file", callpop)[1])){
+FUNK:	is.na
+FUNK:	grep
+2 0| popsplt <- unlist(strsplit(pop, "/"))
+FUNK:	unlist
+FUNK:	strsplit
+2 0| namelist$File <- popsplt[length(popsplt)]
+FUNK:	length
+1 0| }
+2 0| else if(is.genind(pop)){
+FUNK:	is.genind
+2 0| namelist$File <- x$X
+1 0| }
+2 0| else{
+2 0| namelist$File <- basename(x$X)
+FUNK:	basename
+1 0| }
+1 0| pop <- popsub(x$GENIND, sublist=sublist, blacklist=blacklist)
+FUNK:	popsub
+1 0| poplist <- .pop.divide(pop)
+FUNK:	.pop.divide
+1 0| pop.mat <- mlg.matrix(pop)
+FUNK:	mlg.matrix
+2 0| if (total==TRUE & !is.null(poplist)){
+FUNK:	is.null
+2 0| poplist$Total <- pop
+2 0| pop.mat <- rbind(pop.mat, colSums(pop.mat))
+FUNK:	rbind
+FUNK:	colSums
+1 0| }
+1 0| sublist <- names(poplist)
+FUNK:	names
+1 0| Iout <- NULL
+1 0| result <- NULL
+1 0| origpop <- x$GENIND
+1 0| rm(x)
+FUNK:	rm
+1 0| total <- toupper(total)
+FUNK:	toupper
+1 0| missing <- toupper(missing)
+FUNK:	toupper
+1 0| type <- pop@type
+2 0| if(type=="PA"){
+2 0| .Ia.Rd <- .PA.Ia.Rd
+1 0| }
+2 0| if (is.null(poplist)){
+FUNK:	is.null
+2 0| MPI <- NULL
+1 0| }
+2 0| else{
+2 0| MPI <- 1
+1 0| }
+2 0| if (!is.null(MPI)){
+FUNK:	is.null
+2 0| MLG.vec <- vapply(sublist, function(x) mlg(poplist[[x]], quiet=TRUE), 1)
+FUNK:	vapply
+FUNK:	mlg
+2 0| N.vec <- vapply(sublist, function(x) length(poplist[[x]]@ind.names), 1)
+FUNK:	vapply
+FUNK:	length
+2 0| H <- vegan::diversity(pop.mat)
+FUNK:	diversity
+2 0| G <- vegan::diversity(pop.mat, "inv")
+FUNK:	diversity
+2 0| Hexp <- (N.vec/(N.vec-1))*vegan::diversity(pop.mat, "simp")
+FUNK:	diversity
+2 0| E.5 <- (G-1)/(exp(H)-1)
+FUNK:	exp
+2 1| raremax <- ifelse(is.null(nrow(pop.mat)), sum(pop.mat),
+FUNK:	ifelse
+FUNK:	is.null
+FUNK:	nrow
+FUNK:	sum
+2 2| ifelse(min(rowSums(pop.mat)) > minsamp,
+FUNK:	ifelse
+FUNK:	min
+FUNK:	rowSums
+2 0| min(rowSums(pop.mat)), minsamp))
+FUNK:	min
+FUNK:	rowSums
+2 0| N.rare <- rarefy(pop.mat, raremax, se=TRUE)
+FUNK:	rarefy
+2 0| IaList <- NULL
+2 2| invisible(lapply(sublist, function(x)
+FUNK:	invisible
+FUNK:	lapply
+2 3| IaList <<- rbind(IaList,
+FUNK:	rbind
+2 4| .new.ia(poplist[[x]],
+FUNK:	.new.ia
+2 4| sample=sample,
+2 4| method=method,
+2 4| quiet=quiet,
+2 4| missing=missing,
+2 4| namelist=list(File=namelist$File, population = x),
+FUNK:	list
+2 4| hist=hist
+2 0| ))))
+2 2| Iout <- as.data.frame(list(Pop=sublist, N=N.vec, MLG=MLG.vec,
+FUNK:	as.data.frame
+FUNK:	list
+2 2| eMLG=round(N.rare[1, ], 3),
+FUNK:	round
+2 2| SE=round(N.rare[2, ], 3),
+FUNK:	round
+2 2| H=round(H, 3),
+FUNK:	round
+2 2| G=round(G,3),
+FUNK:	round
+2 2| Hexp=round(Hexp, 3),
+FUNK:	round
+2 2| E.5=round(E.5,3),
+FUNK:	round
+2 2| IaList,
+2 0| File=namelist$File))
+2 0| rownames(Iout) <- NULL
+FUNK:	rownames
+2 0| return(final(Iout, result))
+FUNK:	final
+1 0| }
+2 0| else {
+2 0| MLG.vec <- mlg(pop, quiet=TRUE)
+FUNK:	mlg
+2 0| N.vec <- length(pop@ind.names)
+FUNK:	length
+2 0| H <- vegan::diversity(pop.mat)
+FUNK:	diversity
+2 0| G <- vegan::diversity(pop.mat, "inv")
+FUNK:	diversity
+2 0| Hexp <- (N.vec/(N.vec-1))*vegan::diversity(pop.mat, "simp")
+FUNK:	diversity
+2 0| E.5 <- (G-1)/(exp(H)-1)
+FUNK:	exp
+2 0| N.rare <- rarefy(pop.mat, sum(pop.mat), se=TRUE)
+FUNK:	rarefy
+FUNK:	sum
+2 1| IaList <- .new.ia(pop, sample=sample, method=method, quiet=quiet, missing=missing,
+FUNK:	.new.ia
+2 1| namelist=(list(File=namelist$File, population="Total")),
+FUNK:	list
+2 0| hist=hist)
+2 2| Iout <- as.data.frame(list(Pop="Total", N=N.vec, MLG=MLG.vec,
+FUNK:	as.data.frame
+FUNK:	list
+2 2| eMLG=round(N.rare[1, ], 3),
+FUNK:	round
+2 2| SE=round(N.rare[2, ], 3),
+FUNK:	round
+2 2| H=round(H, 3),
+FUNK:	round
+2 2| G=round(G,3),
+FUNK:	round
+2 2| Hexp=round(Hexp, 3),
+FUNK:	round
+2 2| E.5=round(E.5,3),
+FUNK:	round
+2 2| as.data.frame(t(IaList)),
+FUNK:	as.data.frame
+FUNK:	t
+2 0| File=namelist$File))
+2 0| rownames(Iout) <- NULL
+FUNK:	rownames
+2 0| return(final(Iout, result))
+FUNK:	final
+1 0| }
+0 0| }
+
+{ (| new.poppr.all
+- -
+1 0| new.poppr.all <- function(filelist, ...) {
+1 0| result <- NULL
+2 0| for(a in filelist){
+2 0| cat("| File: ",basename(a),"\n")
+FUNK:	basename
+2 0| result <- rbind(result, new.poppr(a, ...))
+FUNK:	rbind
+FUNK:	new.poppr
+1 0| }
+1 0| result <- extract.info(result)
+FUNK:	extract.info
+1 0| return(result)
+0 0| }
+
+{ (| .new.ia
+- -
+0 1| .new.ia <- function(pop,sample=0,method=1,quiet=FALSE,namelist=NULL,missing="ignore",
+1 0| hist=TRUE){
+1 1| METHODS = c("multilocus", "permute alleles", "parametric bootstrap",
+1 0| "non-parametric bootstrap")
+2 0| if(pop@type!="PA"){
+2 0| type <- pop@type
+2 0| popx <- seploc(pop)
+FUNK:	seploc
+1 0| }
+2 0| else {
+2 0| type <- pop@type
+2 0| popx <- pop
+2 0| .Ia.Rd <- .PA.Ia.Rd
+1 0| }
+2 0| if (nInd(pop) < 3){
+FUNK:	nInd
+2 0| IarD <- as.numeric(c(NA,NA))
+FUNK:	as.numeric
+2 0| names(IarD) <- c("Ia", "rbarD")
+FUNK:	names
+3 0| if(sample==0){
+3 0| return(IarD)
+2 0| }
+3 0| else{
+3 0| IarD <- as.numeric(rep(NA,4))
+FUNK:	as.numeric
+FUNK:	rep
+3 0| names(IarD) <- c("Ia","p.Ia","rbarD","p.rD")
+FUNK:	names
+3 0| return(IarD)
+2 0| }
+1 0| }
+1 0| IarD <- .Ia.Rd(popx, missing)
+FUNK:	.Ia.Rd
+2 0| if (!quiet){
+2 0| cat("|", namelist$population ,"\n")
+1 0| }
+1 0| names(IarD) <- c("Ia", "rbarD")
+FUNK:	names
+2 0| if (sample==0){
+2 0| Iout <- IarD
+2 0| result <- NULL
+1 0| }
+2 0| else{
+2 0| Iout <- NULL
+2 0| idx <- as.data.frame(list(Index=names(IarD)))
+FUNK:	as.data.frame
+FUNK:	list
+FUNK:	names
+2 0| samp <- .sampling(popx, sample, missing, quiet=quiet, type=type, method=method)
+FUNK:	.sampling
+2 0| sampstatIa <- c(range(samp[[1]]), median(samp[[1]]), mean(samp[[1]]), var(samp[[1]]), sd(samp[[1]]))
+FUNK:	range
+FUNK:	median
+FUNK:	mean
+FUNK:	var
+FUNK:	sd
+2 0| names(sampstatIa) <- c("Ia.min", "Ia.max", "Ia.med", "Ia.mean", "Ia.var", "Ia.sd")
+FUNK:	names
+2 0| sampstatRd <- c(range(samp[[2]]), median(samp[[2]]), mean(samp[[2]]), var(samp[[2]]), sd(samp[[2]]))
+FUNK:	range
+FUNK:	median
+FUNK:	mean
+FUNK:	var
+FUNK:	sd
+2 0| names(sampstatRd) <- c("Rd.min", "Rd.max", "Rd.med", "Rd.mean", "Rd.var", "Rd.sd")
+FUNK:	names
+2 0| samp2 <- rbind(samp, IarD)
+FUNK:	rbind
+2 0| p.val <- ia.pval(index="Ia", samp2, IarD[1])
+FUNK:	ia.pval
+2 0| p.val[2] <- ia.pval(index="rbarD", samp2, IarD[2])
+FUNK:	ia.pval
+3 0| if(hist == TRUE){
+3 1| poppr.plot(samp, observed=IarD, pop=namelist$population,
+FUNK:	poppr.plot
+3 0| file=namelist$File, pval=p.val, N=nrow(pop@tab))
+FUNK:	nrow
+2 0| }
+2 0| result <- 1:4
+2 0| result[c(1,3)] <- IarD
+2 0| result[c(2,4)] <- p.val
+2 0| names(result) <- c("Ia","p.Ia","rbarD","p.rD")
+FUNK:	names
+2 0| result <- c(result[1:2], sampstatIa, result[3:4], sampstatRd)
+1 0| }
+1 0| return(final(Iout, result))
+FUNK:	final
+0 0| }
+
+{ (| getinds
+- -
+1 0| getinds <- function(x){
+1 0| to <- cumsum(x)
+FUNK:	cumsum
+1 0| from <- c(1, to[-length(to)]+1)
+FUNK:	length
+1 0| indices <- rbind(from, to)
+FUNK:	rbind
+1 0| rownames(indices) <- NULL
+FUNK:	rownames
+1 0| return(indices)
+0 0| }
+
+{ (| total.shuffler
+- -
+1 0| total.shuffler <- function(pop, method){
+1 0| return(lapply(pop, pop.sampler, method))
+FUNK:	lapply
+0 0| }
+
+{ (| pop.sampler
+- -
+1 0| pop.sampler <- function(pop, method=1){
+1 0| pop_names <- names(table(pop@pop))
+FUNK:	names
+FUNK:	table
+1 0| total_inds <- 1:length(pop@pop)
+FUNK:	length
+
+{ (| repop
+- -
+2 0| repop <- function(x, pop, pop_names, total_inds, method){
+2 0| pop_vec <- total_inds[pop@pop %in% pop_names[x]]
+3 0| if(all(is.na(pop@tab[pop_vec, ]))){
+FUNK:	all
+FUNK:	is.na
+3 0| pop@tab[pop_vec, ] <<- pop@tab[pop_vec, ]
+3 0| return(1)
+2 0| }
+2 0| cols <- which(colSums(pop[pop_vec, ]@tab, na.rm=TRUE) > 0)
+FUNK:	which
+FUNK:	colSums
+2 0| newpop <- pop
+3 0| if(method != 2){
+3 0| newpop@tab[pop_vec, -cols] <- 0
+2 0| }
+2 0| newpop@tab[pop_vec, cols] <- .locus.shuffler(popsub(pop, x), method)@tab
+FUNK:	.locus.shuffler
+FUNK:	popsub
+3 0| if(method == 1){
+3 0| replacements <- is.na(rowSums(newpop@tab[pop_vec, cols]))
+FUNK:	is.na
+FUNK:	rowSums
+4 0| if(any(replacements == TRUE)){
+FUNK:	any
+4 0| newpop@tab[pop_vec[replacements], -cols] <- NA
+3 0| }
+2 0| }
+2 0| pop@tab[pop_vec, ] <<- newpop@tab[pop_vec, ]
+2 0| return(0)
+1 0| }
+1 0| invisible(lapply(1:length(pop_names), repop, pop, pop_names, total_inds, method))
+FUNK:	invisible
+FUNK:	lapply
+FUNK:	length
+1 0| return(pop)
+0 0| }
+
+{ (| genoid.bruvo.boot
+- -
+0 1| genoid.bruvo.boot <- function(pop, replen=c(2), sample = 100, tree = "upgma",
+1 0| showtree=TRUE, cutoff=NULL, quiet=FALSE, ...) {
+2 0| if(pop@type != "codom" | all(is.na(unlist(lapply(pop@all.names, as.numeric))))){
+FUNK:	all
+FUNK:	is.na
+FUNK:	unlist
+FUNK:	lapply
+2 0| stop("\nThis dataset does not appear to be microsatellite data. Bruvo's Distance can only be applied for true microsatellites.")
+1 0| }
+1 0| ploid <- ploidy(pop)
+FUNK:	ploidy
+2 0| if (length(replen) != length(pop@loc.names)){
+FUNK:	length
+FUNK:	length
+2 0| replen <- vapply(pop@all.names, function(x) guesslengths(as.numeric(x)), 1)
+FUNK:	vapply
+FUNK:	guesslengths
+FUNK:	as.numeric
+2 0| warning("\n\nRepeat length vector for loci is not equal to the number of loci represented.\nEstimating repeat lengths from data:\n", immediate.=TRUE)
+2 0| cat(replen,"\n\n")
+1 0| }
+2 0| if(any(!round(pop@tab,10) %in% c(0,((1:ploid)/ploid),1, NA))){
+FUNK:	any
+FUNK:	round
+2 0| pop@tab[!round(pop@tab,10) %in% c(0,((1:ploid)/ploid),1, NA)] <- NA
+FUNK:	round
+1 0| }
+1 0| bar <- as.matrix(genind2df(pop, sep="/", usepop=FALSE))
+FUNK:	as.matrix
+FUNK:	genind2df
+1 0| bar[bar %in% c("", NA)] <- paste(rep(0, ploid), collapse="/")
+FUNK:	paste
+FUNK:	rep
+2 0| if(tree == "upgma"){
+2 0| newfunk <- match.fun(upgma)
+FUNK:	match.fun
+1 0| }
+2 0| else if(tree == "nj"){
+2 0| newfunk <- match.fun(nj)
+FUNK:	match.fun
+1 0| }
+1 0| tre <- newfunk(phylo.bruvo.dist(bar, replen=replen, ploid=ploid))
+FUNK:	newfunk
+FUNK:	phylo.bruvo.dist
+2 0| if (any (tre$edge.length < 0)){
+2 0| tre$edge.length[tre$edge.length < 0] <- 0
+1 0| }
+2 0| if(quiet == FALSE){
+2 0| cat("\nBootstrapping... (note: calculation of node labels can take a while even after the progress bar is full)\n\n")
+1 0| }
+1 0| bp <- boot.phylo(tre, bar, FUN = function (x) newfunk(phylo.bruvo.dist(x, replen = replen, ploid = ploid)), B = sample, quiet=quiet, ...)
+FUNK:	boot.phylo
+FUNK:	newfunk
+FUNK:	phylo.bruvo.dist
+1 0| tre$node.labels <- round(((bp / sample)*100))
+FUNK:	round
+2 0| if (!is.null(cutoff)){
+FUNK:	is.null
+3 0| if (cutoff < 1 | cutoff > 100){
+3 0| cat("Cutoff value must be between 0 and 100.\n")
+3 0| cutoff<- as.numeric(readline(prompt = "Choose a new cutoff value between 0 and 100:\n"))
+FUNK:	as.numeric
+FUNK:	readline
+2 0| }
+2 0| tre$node.labels[tre$node.labels < cutoff]<-NA
+1 0| }
+1 0| tre$tip.label <- pop@ind.names
+2 0| if(showtree == TRUE){
+2 0| plot(tre, show.node.label=TRUE)
+FUNK:	plot
+1 0| }
+2 0| if(tree=="upgma"){
+2 0| axisPhylo(3)
+FUNK:	axisPhylo
+1 0| }
+1 0| return(tre)
+0 0| }
+
+{ (| javier
+- -
+1 0| javier<-function(x){
+1 0| cat ("http://www.youtube.com/watch?v=1-ctsxVXvO0")
+0 0| }
+
+File:	visualizations.r =====================================================>
+
+{ (| permut.histogram.maker
+- -
+1 0| permut.histogram.maker <- function(index="index",sampled,observed,pop){
+2 0| if(all(is.nan(sampled[[index]]))){
+FUNK:	all
+FUNK:	is.nan
+2 0| warning("Cannot create histogram due to NaN's")
+2 0| next
+1 0| }
+1 0| xmin <- min(observed, sampled[[index]])
+FUNK:	min
+1 0| xmax <- max(observed, sampled[[index]])
+FUNK:	max
+2 0| if(!is.nan(xmax) & xmax==Inf & index=="rbarD"){
+FUNK:	is.nan
+2 0| xmax <- 1
+1 0| }
+2 0| if(is.nan(xmin)){
+FUNK:	is.nan
+2 0| xmin <- -0.5
+1 0| }
+2 0| if(is.nan(xmax)){
+FUNK:	is.nan
+2 0| xmax <- ifelse(index=="Ia", 18, 1)
+FUNK:	ifelse
+1 0| }
+1 1| hist(sampled[[index]], xlim=c(xmin, xmax),
+FUNK:	hist
+1 1| main=c("Population:",as.character(pop)),
+FUNK:	as.character
+1 2| xlab=sprintf("%s (%d permutations)",names(sampled[index]),
+FUNK:	sprintf
+FUNK:	names
+1 0| length(sampled[[index]])), col="grey")
+FUNK:	length
+1 0| abline(v=observed, col="green")
+FUNK:	abline
+1 0| perc95 <- quantile(sampled[[index]], 0.95, na.rm=TRUE)[[1]]
+FUNK:	quantile
+1 0| abline(v=perc95, col="red")
+FUNK:	abline
+0 0| }
+
+{ (| permut.histogram
+- -
+1 0| permut.histogram <- function(sampled, observed, pval, pop="pop", file="file"){
+1 0| par(xpd=TRUE,mfrow=c(3,1))
+FUNK:	par
+1 0| permut.histogram.maker(index="Ia",sampled,observed[1],pop)
+FUNK:	permut.histogram.maker
+2 0| if (!is.na(pval)){
+FUNK:	is.na
+2 0| pval <- ifelse(pval==0, sprintf("< %g", 1/length(sampled[["Ia"]])), pval)
+FUNK:	ifelse
+FUNK:	sprintf
+FUNK:	length
+2 0| frame()
+FUNK:	frame
+2 2| legend('center', col=c("red", "green"), lty=c(1,1), c("p = 0.05",
+FUNK:	legend
+2 1| paste("Observed\n","(p-value  ",pval,")", sep="")),
+FUNK:	paste
+2 0| horiz=TRUE, title=paste("File : ",file,sep=""))
+FUNK:	paste
+1 0| }
+1 0| permut.histogram.maker(index="rbarD",sampled,observed[2],pop)
+FUNK:	permut.histogram.maker
+0 0| }
+
+{ (| poppr.plot
+- -
+0 1| poppr.plot <- function(sample, pval = c("0.05", "0.05"), pop="pop",
+1 0| observed = observed, file="file", N=NA){
+2 0| if (all(is.nan(sample$rbarD))){
+FUNK:	all
+FUNK:	is.nan
+2 0| warning(paste("The data from ",file,", population: ",pop," contains only missing values and cannot be displayed graphically", sep=""))
+FUNK:	paste
+2 0| background_stuff <- theme(panel.grid.major.y = element_line(size=0)) +
+FUNK:	theme
+FUNK:	element_line
+2 0| theme(panel.grid.minor.y = element_line(size=0)) +
+FUNK:	theme
+FUNK:	element_line
+2 0| theme(panel.grid.major.x = element_line(size=0)) +
+FUNK:	theme
+FUNK:	element_line
+2 0| theme(panel.background = element_rect(fill="grey95")) +
+FUNK:	theme
+FUNK:	element_rect
+2 0| theme(axis.ticks.y = element_line(size=0)) +
+FUNK:	theme
+FUNK:	element_line
+2 0| theme(axis.text.y = element_text(size=0)) +
+FUNK:	theme
+FUNK:	element_text
+2 0| theme(axis.ticks.x = element_line(size=0)) +
+FUNK:	theme
+FUNK:	element_line
+2 0| theme(axis.text.x = element_text(size=0)) +
+FUNK:	theme
+FUNK:	element_text
+2 0| theme(axis.title.y = element_text(size=rel(0)))+
+FUNK:	theme
+FUNK:	element_text
+FUNK:	rel
+2 0| theme(axis.title.x = element_text(size=rel(0)))
+FUNK:	theme
+FUNK:	element_text
+FUNK:	rel
+2 0| oops <- ggplot(as.data.frame(list(x=-10:9)), aes_string(x = "x")) +
+FUNK:	ggplot
+FUNK:	as.data.frame
+FUNK:	list
+FUNK:	aes_string
+2 0| geom_histogram(binwidth=1, fill="orange") +
+FUNK:	geom_histogram
+2 0| geom_text(aes(label="Warning:", x=0, y=0.8), color="black", size=rel(15)) +
+FUNK:	geom_text
+FUNK:	aes
+FUNK:	rel
+2 2| geom_text(aes(label="Data contains only NaNs and\ncannot be displayed graphically",
+FUNK:	geom_text
+FUNK:	aes
+2 0| x=0, y=0.5, hjust=0.5), color="black", size=rel(10)) +
+FUNK:	rel
+2 2| labs(title=paste("Population: ", pop, "; N: ", N, "\nPermutations: ",
+FUNK:	labs
+FUNK:	paste
+2 0| length(sample$Ia), "\nFile: ", file, sep="")) +
+FUNK:	length
+2 0| theme(plot.title = element_text(vjust=1, size=rel(2), face="bold")) +
+FUNK:	theme
+FUNK:	element_text
+FUNK:	rel
+2 0| background_stuff
+2 0| print(oops)
+FUNK:	print
+1 0| }
+2 0| else {
+2 0| if(any(is.nan(sample[["rbarD"]])))
+FUNK:	any
+FUNK:	is.nan
+2 0| sample[["rbarD"]][which(is.nan(sample[["rbarD"]]))] <- mean(sample[["rbarD"]], na.rm=TRUE)
+FUNK:	which
+FUNK:	is.nan
+FUNK:	mean
+2 0| if(any(is.nan(sample[["Ia"]])))
+FUNK:	any
+FUNK:	is.nan
+2 0| sample[["Ia"]][which(is.nan(sample[["Ia"]]))] <- mean(sample[["Ia"]], na.rm=TRUE)
+FUNK:	which
+FUNK:	is.nan
+FUNK:	mean
+2 0| Indexfac <- factor(1:2, levels=1:2, labels=c("I[A]","bar(r)[d]"))
+FUNK:	factor
+FUNK:	bar
+2 2| infodata <- as.data.frame(list(Value=c(sample[["Ia"]], sample[["rbarD"]]),
+FUNK:	as.data.frame
+FUNK:	list
+2 0| Index=rep(Indexfac, each=length(sample[["Ia"]]))))
+FUNK:	rep
+FUNK:	length
+2 0| obsdata <- data.frame(list(Observed=observed[1:2], Index=Indexfac))
+FUNK:	data.frame
+FUNK:	list
+2 0| obsdata[["P"]] <- paste("Observed \n(p-value: ", pval,")",sep="")
+FUNK:	paste
+FUNK:	n
+2 1| obsdata[["median"]] <- c(median(infodata[infodata[["Index"]] == Indexfac[1], "Value"]),
+FUNK:	median
+2 0| median(infodata[infodata[["Index"]] == Indexfac[2], "Value"]))
+FUNK:	median
+2 0| obsdata[["label"]] <- paste("Observed: ",obsdata[["Observed"]], sep="")
+FUNK:	paste
+3 0| if(any(is.na(observed))){
+FUNK:	any
+FUNK:	is.na
+3 0| warning(paste("The Index of Association values from ",file,", population: ",pop," contain missing values and cannot be displayed graphically", sep=""))
+FUNK:	paste
+3 0| iard_plot <- ggplot(infodata, aes_string(x = "Value")) +
+FUNK:	ggplot
+FUNK:	aes_string
+3 1| geom_histogram(linetype="blank", #alpha=0.8,
+FUNK:	geom_histogram
+3 1| data = infodata[infodata[["Index"]] == Indexfac[1], ],
+3 1| position="identity",
+3 0| binwidth=diff(range(infodata[infodata[["Index"]] == Indexfac[1], "Value"]))/30) +
+FUNK:	diff
+FUNK:	range
+3 1| geom_histogram(linetype="blank", #alpha=0.8,
+FUNK:	geom_histogram
+3 1| data = infodata[infodata[["Index"]] == Indexfac[2], ],
+3 1| position="identity",
+3 0| binwidth=diff(range(infodata[infodata[["Index"]] == Indexfac[2], "Value"]))/30) +
+FUNK:	diff
+FUNK:	range
+3 0| geom_rug() +
+FUNK:	geom_rug
+3 1| geom_text(aes_string(label="label", x=0, y=Inf, vjust=1.5),
+FUNK:	geom_text
+FUNK:	aes_string
+3 0| data=obsdata, angle=0, color="red") +
+3 0| facet_grid(". ~ Index", scales="free_x", labeller=label_parsed) +
+FUNK:	facet_grid
+3 2| labs(title=paste("Population: ", pop, "; N: ", N, "\nPermutations: ",
+FUNK:	labs
+FUNK:	paste
+3 0| length(sample$Ia), "\nFile: ", file, sep="")) +
+FUNK:	length
+3 0| theme_classic() %+replace%
+FUNK:	theme_classic
+3 0| theme(plot.title = element_text(vjust=1, size=rel(2), face="bold")) +
+FUNK:	theme
+FUNK:	element_text
+FUNK:	rel
+3 0| theme(panel.background = element_rect(fill="grey98")) +
+FUNK:	theme
+FUNK:	element_rect
+3 0| theme(strip.text.x = element_text(size=rel(3), face="bold"))
+FUNK:	theme
+FUNK:	element_text
+FUNK:	rel
+2 0| }
+3 0| else{
+3 0| iard_plot <- ggplot(infodata, aes_string(x = "Value")) +
+FUNK:	ggplot
+FUNK:	aes_string
+3 1| geom_histogram(linetype="blank", #alpha=0.8,
+FUNK:	geom_histogram
+3 1| data = infodata[infodata[["Index"]] == Indexfac[1], ],
+3 1| position="identity",
+3 0| binwidth=diff(range(infodata[infodata[["Index"]] == Indexfac[1], "Value"]))/30) +
+FUNK:	diff
+FUNK:	range
+3 1| geom_histogram(linetype="blank", #alpha=0.8,
+FUNK:	geom_histogram
+3 1| data = infodata[infodata[["Index"]] == Indexfac[2], ],
+3 1| position="identity",
+3 0| binwidth=diff(range(infodata[infodata[["Index"]] == Indexfac[2], "Value"]))/30) +
+FUNK:	diff
+FUNK:	range
+3 0| geom_rug() +
+FUNK:	geom_rug
+3 1| geom_vline(aes_string(xintercept = "Observed"), data = obsdata, color="blue",
+FUNK:	geom_vline
+FUNK:	aes_string
+3 0| show_guide=TRUE, linetype="dashed") +
+3 2| geom_text(aes_string(label="P",
+FUNK:	geom_text
+FUNK:	aes_string
+3 1| x="Observed",y=Inf,vjust=2,hjust="ifelse(Observed > median, 1.01, -0.01)"),
+FUNK:	ifelse
+3 0| data=obsdata, angle=0, color="blue") +
+3 0| facet_grid(". ~ Index", scales="free_x", labeller=label_parsed) +
+FUNK:	facet_grid
+3 2| labs(title=paste("Population: ", pop, "; N: ", N, "\nPermutations: ",
+FUNK:	labs
+FUNK:	paste
+3 0| length(sample$Ia), "\nFile: ", file, sep="")) +
+FUNK:	length
+3 0| theme_classic() %+replace%
+FUNK:	theme_classic
+3 0| theme(plot.title = element_text(vjust=1, size=rel(2), face="bold")) +
+FUNK:	theme
+FUNK:	element_text
+FUNK:	rel
+3 0| theme(panel.background = element_rect(fill="grey98")) +
+FUNK:	theme
+FUNK:	element_rect
+3 0| theme(strip.text.x = element_text(size=rel(3), face="bold"))
+FUNK:	theme
+FUNK:	element_text
+FUNK:	rel
+2 0| }
+2 0| print(iard_plot)
+FUNK:	print
+1 0| }
+0 0| }
+
+{ (| poppr.msn
+- -
+0 1| poppr.msn <- function (pop, distmat, palette = topo.colors,
+0 1| sublist = "All", blacklist = NULL, vertex.label = "MLG",
+0 1| gscale=TRUE, glim = c(0,0.8), gadj = 3, gweight = 1,
+1 0| wscale=TRUE, ...){
+2 0| if (class(distmat) != "dist"){
+FUNK:	class
+3 0| if (is.matrix(distmat)){
+FUNK:	is.matrix
+4 0| if (any(nInd(pop) != dim(distmat))){
+FUNK:	any
+FUNK:	nInd
+FUNK:	dim
+4 0| stop("The size of the distance matrix does not match the size of the data.\n")
+3 0| }
+3 0| distmat <- as.dist(distmat)
+FUNK:	as.dist
+3 0| } else {
+3 0| stop("The distance matrix is neither a dist object nor a matrix.\n")
+2 0| }
+1 0| }
+2 0| if (nInd(pop) != attr(distmat, "Size")){
+FUNK:	nInd
+FUNK:	attr
+2 0| stop("The size of the distance matrix does not match the size of the data.\n")
+1 0| }
+1 0| gadj <- ifelse(gweight == 1, gadj, -gadj)
+FUNK:	ifelse
+1 0| pop$other$mlg.vec <- mlg.vector(pop)
+FUNK:	mlg.vector
+1 0| bclone <- as.matrix(distmat)
+FUNK:	as.matrix
+2 0| if (is.null(pop(pop)) | length(pop@pop.names) == 1){
+FUNK:	is.null
+FUNK:	pop
+FUNK:	length
+2 0| bclone <- bclone[!duplicated(pop$other$mlg.vec), !duplicated(pop$other$mlg.vec)]
+FUNK:	duplicated
+FUNK:	duplicated
+2 2| return(singlepop_msn(pop, vertex.label, distmat = bclone, gscale = gscale,
+FUNK:	singlepop_msn
+2 2| glim = glim, gadj = gadj, wscale = wscale,
+2 0| palette = palette))
+1 0| }
+2 0| if(sublist[1] != "ALL" | !is.null(blacklist)){
+FUNK:	is.null
+2 0| sublist_blacklist <- sub_index(pop, sublist, blacklist)
+FUNK:	sub_index
+2 0| bclone <- bclone[sublist_blacklist, sublist_blacklist]
+2 0| pop <- popsub(pop, sublist, blacklist)
+FUNK:	popsub
+1 0| }
+1 0| bclone <- bclone[!duplicated(pop$other$mlg.vec), !duplicated(pop$other$mlg.vec)]
+FUNK:	duplicated
+FUNK:	duplicated
+2 0| if (is.null(pop(pop)) | length(pop@pop.names) == 1){
+FUNK:	is.null
+FUNK:	pop
+FUNK:	length
+2 2| return(singlepop_msn(pop, vertex.label, distmat = bclone, gscale = gscale,
+FUNK:	singlepop_msn
+2 2| glim = glim, gadj = gadj, wscale = wscale,
+2 0| palette = palette))
+1 0| }
+1 0| mlg.cp <- mlg.crosspop(pop, mlgsub=1:mlg(pop, quiet=TRUE), quiet=TRUE)
+FUNK:	mlg.crosspop
+FUNK:	mlg
+1 0| names(mlg.cp) <- paste0("MLG.", sort(unique(pop$other$mlg.vec)))
+FUNK:	names
+FUNK:	paste0
+FUNK:	sort
+FUNK:	unique
+1 0| cpop <- pop[.clonecorrector(pop), ]
+FUNK:	.clonecorrector
+1 0| mlg.number <- table(pop$other$mlg.vec)[rank(cpop$other$mlg.vec)]
+FUNK:	table
+FUNK:	rank
+1 0| mlg.cp     <- mlg.cp[rank(cpop$other$mlg.vec)]
+FUNK:	rank
+1 0| rownames(bclone) <- cpop$pop
+FUNK:	rownames
+1 0| colnames(bclone) <- cpop$pop
+FUNK:	colnames
+1 0| g   <- graph.adjacency(bclone, weighted=TRUE, mode="undirected")
+FUNK:	graph.adjacency
+1 0| mst <- minimum.spanning.tree(g, algorithm="prim", weights=E(g)$weight)
+FUNK:	minimum.spanning.tree
+FUNK:	E
+2 0| if (!is.na(vertex.label[1]) & length(vertex.label) == 1){
+FUNK:	is.na
+FUNK:	length
+3 0| if(toupper(vertex.label) == "MLG"){
+FUNK:	toupper
+3 0| vertex.label <- paste("MLG.", cpop$other$mlg.vec, sep="")
+FUNK:	paste
+2 0| }
+3 0| else if(toupper(vertex.label) == "INDS"){
+FUNK:	toupper
+3 0| vertex.label <- cpop$ind.names
+2 0| }
+1 0| }
+1 0| palette <- match.fun(palette)
+FUNK:	match.fun
+1 0| color   <- palette(length(pop@pop.names))
+FUNK:	palette
+FUNK:	length
+2 0| if (gscale == TRUE){
+2 2| E(mst)$color <- gray(adjustcurve(E(mst)$weight, glim=glim, correction=gadj,
+FUNK:	E
+FUNK:	gray
+FUNK:	adjustcurve
+FUNK:	E
+2 0| show=FALSE))
+2 0| } else {
+2 0| E(mst)$color <- rep("black", length(E(mst)$weight))
+FUNK:	E
+FUNK:	rep
+FUNK:	length
+FUNK:	E
+1 0| }
+1 0| edgewidth <- 2
+2 0| if (wscale==TRUE){
+2 0| edgewidth <- 1/(E(mst)$weight)
+FUNK:	E
+3 0| if (any(E(mst)$weight < 0.08)){
+FUNK:	any
+FUNK:	E
+3 0| edgewidth <- 1/(E(mst)$weight + 0.08)
+FUNK:	E
+2 0| }
+1 0| }
+1 0| mlg.color <- lapply(mlg.cp, function(x) color[pop@pop.names %in% names(x)])
+FUNK:	lapply
+FUNK:	names
+1 1| plot.igraph(mst, edge.width = edgewidth, edge.color = E(mst)$color,
+FUNK:	plot.igraph
+FUNK:	E
+1 1| vertex.size = mlg.number*3, vertex.shape = "pie", vertex.pie = mlg.cp,
+1 0| vertex.pie.color = mlg.color, vertex.label = vertex.label, ...)
+1 1| legend(-1.55 ,1 ,bty = "n", cex = 0.75, legend = pop$pop.names,
+FUNK:	legend
+1 0| title = "Populations", fill=color, border=NULL)
+1 0| E(mst)$width     <- edgewidth
+FUNK:	E
+1 0| V(mst)$size      <- mlg.number
+FUNK:	V
+1 0| V(mst)$shape     <- "pie"
+FUNK:	V
+1 0| V(mst)$pie       <- mlg.cp
+FUNK:	V
+1 0| V(mst)$pie.color <- mlg.color
+FUNK:	V
+1 0| V(mst)$label     <- vertex.label
+FUNK:	V
+1 0| return(list(graph = mst, populations = pop$pop.names, colors = color))
+FUNK:	list
+0 0| }

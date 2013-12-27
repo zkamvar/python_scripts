@@ -45,14 +45,6 @@ def find_function_def(line):
 # for determining when functions end as they can wrap several lines. Escape
 # are detected and not counted.
 #==============================================================================#
-def open_braces(line):
-	curly = len(re.findall(r'\{', line)) - escaped_braces(line, '{')
-	parens = len(re.findall(r'\(', line)) - escaped_braces(line, '(')
-	return [curly, parens]
-def closed_braces(line):
-	curly = len(re.findall(r'\}', line)) - escaped_braces(line, '}')
-	parens = len(re.findall(r'\)', line)) - escaped_braces(line, ')')
-	return [curly, parens]
 def escaped_braces(line, brace):
 	if brace == '{':
 		pattern = r'\\\{|\[\{\]'
@@ -64,6 +56,14 @@ def escaped_braces(line, brace):
 		pattern = r'\\\)|\[\)\]'
 	escaped = len(re.findall(pattern, line))
 	return escaped
+def open_braces(line):
+	curly = len(re.findall(r'\{', line)) - escaped_braces(line, '{')
+	parens = len(re.findall(r'\(', line)) - escaped_braces(line, '(')
+	return [curly, parens]
+def closed_braces(line):
+	curly = len(re.findall(r'\}', line)) - escaped_braces(line, '}')
+	parens = len(re.findall(r'\)', line)) - escaped_braces(line, ')')
+	return [curly, parens]
 def braces_updater(line):
 	ob = open_braces(line)
 	cb = closed_braces(line)
@@ -79,11 +79,13 @@ def braces_updater(line):
 def decompose_nesting(line):
 	funk_matches = re.findall(r'([A-Za-z0-9\._]+?)\(', line)
 	if len(funk_matches) > 0:
+		refined_funk = []
 		for funk in funk_matches:
 			if funk not in ["function", "if", "for", "while", "return", "cat",\
 				"warning", "stop", "stopifnot", "c"]:
-				print("FUNK:\t%s" % funk)
-
+				# print("FUNK:\t%s" % funk)
+				refined_funk.extend([funk])
+		return refined_funk
 #==============================================================================#
 # Function that will check for apply-type function calls as they have variable
 # arguments.
@@ -133,9 +135,10 @@ if __name__ == '__main__':
 
 	open_curly_brace = 0
 	open_parens = 0
+	current_funk = 'unk'
 
 	for f in os.listdir(R_directory):
-		print("\nFile:\t%s %s%s" % (f, "="*(69 - len(f)), ">"))
+		#print("\nFile:\t%s %s%s" % (f, "="*(69 - len(f)), ">"))
 		if f.endswith(".R") or f.endswith(".r"):
 			R_file = io.open(f)
 		else:
@@ -149,9 +152,15 @@ if __name__ == '__main__':
 			open_parens += brace_update[1]
 			is_function = find_function_def(line)
 			if is_function:
-				print("\n{ (| %s\n- -" % is_function)
-			print("%d %d| %s" % (open_curly_brace, open_parens, line))
-			decompose_nesting(line)
+				#print("\n{ (| %s\n- -" % is_function)
+				current_funk = is_function
+			#print("%d %d| %s" % (open_curly_brace, open_parens, line))
+			called_funks = decompose_nesting(line)
+			if called_funks:
+				for funk in called_funks:
+					print("%s\t%s" % (current_funk, funk))
+			else:
+				continue
 
 	os.chdir(starting_directory)
 

@@ -66,10 +66,7 @@ if __name__ == '__main__':
 		for f in os.listdir(src_directory):
 			print(f)
 
-	# print("Verbose: "+str(verbose))
-	# print("C Funk: "+str(cfunk))
-	# print("R Package Directory: "+ package_directory)
-
+	starting_directory = os.getcwd()
 	os.chdir(R_directory)
 
 	open_curly_brace = 0
@@ -93,7 +90,7 @@ if __name__ == '__main__':
 				print("\n{ (| %s\n- -" % is_function)
 			print("%d %d| %s" % (open_curly_brace, open_parens, line))
 
-	
+	os.chdir(starting_directory)
 
 
 

@@ -22,7 +22,6 @@ def usage():
 
 
 
-
 if __name__ == '__main__':
 
 	verbose = False
@@ -41,13 +40,25 @@ if __name__ == '__main__':
 		elif opt == "-c":
 			cfunk = True
 		elif opt in ("-d", "--directory"):
-			package_directory = arg
+			package_directory = os.path.abspath(arg)
 		else:
 			usage()
 
+	R_directory = "/".join([package_directory, "R"])
+	if cfunk:
+		src_directory = "/".join([package_directory, "src"])
+		for f in os.listdir(src_directory):
+			print(f)
+
 	print("Verbose: "+str(verbose))
 	print("C Funk: "+str(cfunk))
-	print("R Package Directory: "+ os.path.abspath(package_directory))
+	print("R Package Directory: "+ package_directory)
+
+	for f in os.listdir(R_directory):
+		print(f)
+
+
+	
 
 
 

@@ -62,7 +62,7 @@ def check_for_apply(line):
 	last_arg = re.search(r'(\w+?)\)', line)
 	if braces_updated(line)[1] == 0 and potential_apply and not funk_call:
 		# Do something
-
+		print(line)
 	return None
 
 

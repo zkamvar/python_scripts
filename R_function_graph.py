@@ -82,7 +82,7 @@ def decompose_nesting(line):
 		refined_funk = []
 		for funk in funk_matches:
 			if funk not in ["function", "if", "for", "while", "return", "cat",\
-				"warning", "stop", "stopifnot", "c"]:
+				"warning", "stop", "stopifnot", "c", "try"]:
 				# print("FUNK:\t%s" % funk)
 				refined_funk.extend([funk])
 		return refined_funk

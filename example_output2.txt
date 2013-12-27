@@ -47,7 +47,6 @@
 .file.type	missingno
 .file.type	read.genalex
 .file.type	toupper
-.file.type	try
 .ia	.Ia.Rd
 .ia	.sampling
 .ia	as.data.frame

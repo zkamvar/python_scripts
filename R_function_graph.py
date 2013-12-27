@@ -20,6 +20,14 @@ def usage():
 	print("")
 	sys.exit(2)
 
+#==============================================================================#
+# Each node in the graph will be a function definition. Functions in R are
+# defined as so:
+# function_name <- function(args, ...){
+# 	## Do something
+# }
+# The <- and = are interchangeable, so that must be accounted for.
+#==============================================================================#
 def find_function_def(line):
 	arrow = re.findall(r'^\s*[A-Za-z0-9\._]+?\s*\<\-\s*function', line)
 	equal = re.findall(r'^\s*[A-Za-z0-9\._]+?\s*=\s*function', line)
@@ -32,21 +40,30 @@ def find_function_def(line):
 	else:
 		return False
 
+#==============================================================================#
+# The following three functions count open and closed braces. This is important
+# for determining when functions end as they can wrap several lines.
+#==============================================================================#
 def open_braces(line):
 	curly = len(re.findall(r'\{', line))
 	parens = len(re.findall(r'\(', line))
 	return [curly, parens]
-
 def closed_braces(line):
 	curly = len(re.findall(r'\}', line))
 	parens = len(re.findall(r'\)', line))
 	return [curly, parens]
-
 def braces_updater(line):
 	ob = open_braces(line)
 	cb = closed_braces(line)
 	return [ob[0] - cb[0], ob[1] - cb[1]]
 
+#==============================================================================#
+# Functions in R can be nested within one another:
+# eg. vapply(1:10, function(x) mean(cumsum(sample(x, replace = TRUE))), 1)
+# This function will attempt to decompose these functional clusters into
+# all functions called. The example above contains four functions:
+# In the order evaluated: vapply, sample, cumsum, mean
+#==============================================================================#
 def decompose_nesting(line):
 	funk_matches = re.findall(r'([A-Za-z0-9\._]+?)\(', line)
 	if len(funk_matches) > 0:
@@ -55,6 +72,10 @@ def decompose_nesting(line):
 				"warning", "stop", "stopifnot", "c"]:
 				print("FUNK:\t%s" % funk)
 
+#==============================================================================#
+# Function that will check for apply-type function calls as they have variable
+# arguments.
+#==============================================================================#
 def check_for_apply(line):
 	potential_apply = re.search(r'\d*apply', line)
 	funk_call = re.search(r'function', line)

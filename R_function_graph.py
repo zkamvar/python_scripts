@@ -33,9 +33,27 @@ def find_function_def(line):
 		return False
 
 def open_braces(line):
-	curly = len(re.findall(r'\{', line)) - len(re.findall(r'\}', line))
-	parens = len(re.findall(r'\(', line)) - len(re.findall(r'\)', line))
+	curly = len(re.findall(r'\{', line))
+	parens = len(re.findall(r'\(', line))
 	return [curly, parens]
+
+def closed_braces(line):
+	curly = len(re.findall(r'\}', line))
+	parens = len(re.findall(r'\)', line))
+	return [curly, parens]
+
+def braces_updater(line):
+	ob = open_braces(line)
+	cb = closed_braces(line)
+	return [ob[0] - cb[0], ob[1] - cb[1]]
+
+def decompose_nesting(line):
+	funk_matches = re.findall(r'([A-Za-z0-9\._]+?)\(', line)
+	if len(funk_matches) > 0:
+		for funk in funk_matches:
+			if funk not in ["function", "if", "for", "while", "return", "cat",\
+				"warning", "stop", "stopifnot", "c"]:
+				print("FUNK:\t%s" % funk)
 
 
 if __name__ == '__main__':
@@ -82,13 +100,14 @@ if __name__ == '__main__':
 			line = line.strip()
 			if re.match(r'^\s*#', line) or re.match(r'^\s*$', line):
 				continue
-			brace_update = open_braces(line)
+			brace_update = braces_updater(line)
 			open_curly_brace += brace_update[0]
 			open_parens += brace_update[1]
 			is_function = find_function_def(line)
 			if is_function:
 				print("\n{ (| %s\n- -" % is_function)
 			print("%d %d| %s" % (open_curly_brace, open_parens, line))
+			decompose_nesting(line)
 
 	os.chdir(starting_directory)
 

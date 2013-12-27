@@ -20,7 +20,13 @@ def usage():
 	print("")
 	sys.exit(2)
 
-
+def find_function_def(line):
+	line = re.findall(r'\s*[A-Za-z0-9\._]+?\s*\<\-\s*function', line)
+	if len(line) > 0:
+		line = re.split(r'\s*\<\-\s*', line[0])[0]
+		return line
+	else:
+		return False
 
 if __name__ == '__main__':
 
@@ -50,13 +56,33 @@ if __name__ == '__main__':
 		for f in os.listdir(src_directory):
 			print(f)
 
-	print("Verbose: "+str(verbose))
-	print("C Funk: "+str(cfunk))
-	print("R Package Directory: "+ package_directory)
+	# print("Verbose: "+str(verbose))
+	# print("C Funk: "+str(cfunk))
+	# print("R Package Directory: "+ package_directory)
+
+	os.chdir(R_directory)
+
+	open_curly_brace = 0
+	open_parens = 0
 
 	for f in os.listdir(R_directory):
-		print(f)
-
+		print("\nFile:\t%s %s%s" % (f, "="*(69 - len(f)), ">"))
+		if f.endswith(".R") or f.endswith(".r"):
+			R_file = io.open(f)
+		else:
+			continue
+		for line in R_file:
+			line = line.strip()
+			if re.match(r'^\s*#', line) or re.match(r'^\s*$', line):
+				continue
+			open_curly_brace += len(re.findall(r'\{', line))
+			open_parens += len(re.findall(r'\(', line))
+			is_function = find_function_def(line)
+			if is_function:
+				print("\n{ (| %s\n- -" % is_function)
+			open_curly_brace -= len(re.findall(r'\}', line))
+			open_parens -= len(re.findall(r'\)', line))
+			print("%d %d| %s" % (open_curly_brace, open_parens, line))
 
 	
 

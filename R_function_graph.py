@@ -55,6 +55,17 @@ def decompose_nesting(line):
 				"warning", "stop", "stopifnot", "c"]:
 				print("FUNK:\t%s" % funk)
 
+def check_for_apply(line):
+	potential_apply = re.search(r'\d*apply', line)
+	funk_call = re.search(r'function', line)
+	args = re.search(r'(\w+?),', line)
+	last_arg = re.search(r'(\w+?)\)', line)
+	if braces_updated(line)[1] == 0 and potential_apply and not funk_call:
+		# Do something
+
+	return None
+
+
 
 if __name__ == '__main__':
 

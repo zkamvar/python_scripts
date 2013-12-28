@@ -89,17 +89,26 @@ def decompose_nesting(line):
 #==============================================================================#
 # Function that will check for apply-type function calls as they have variable
 # arguments.
+#
+# In regex hell. Be back later.
 #==============================================================================#
 def check_for_apply(line):
-	potential_apply = re.search(r'\d*apply', line)
+	potential_apply = re.findall(r'(\w*apply)', line)
+	if potential_apply:
+		print(potential_apply)
 	funk_call = re.search(r'function', line)
-	args = re.search(r'(\w+?),', line)
-	last_arg = re.search(r'(\w+?)\)', line)
-	if braces_updated(line)[1] == 0 and potential_apply and not funk_call:
+	if funk_call:
+		print(funk_call.group())
+	args = re.findall(r',\s*(\w+?).*$', line)
+	if args:
+		print(args)
+	if braces_updater(line)[1] == 0 and potential_apply and not funk_call:
 		# Do something
 		print(line)
 	return None
 
+def woot():
+	print("woot")
 
 
 if __name__ == '__main__':

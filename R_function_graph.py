@@ -144,10 +144,14 @@ if __name__ == '__main__':
 
 	open_curly_brace = 0
 	open_parens = 0
-	current_funk = 'unk'
+	open_curly_brace_thresh = 0
+	sub_funk_line = -1
+	current_funk = ''
+	old_funk = ''
+	all_funks = dict()
 
 	for f in os.listdir(R_directory):
-		#print("\nFile:\t%s %s%s" % (f, "="*(69 - len(f)), ">"))
+		print("\nFile:\t%s %s%s" % (f, "="*(69 - len(f)), ">"))
 		if f.endswith(".R") or f.endswith(".r"):
 			R_file = io.open(f)
 		else:
@@ -160,16 +164,32 @@ if __name__ == '__main__':
 			open_curly_brace += brace_update[0]
 			open_parens += brace_update[1]
 			is_function = find_function_def(line)
+
+			# if open_curly_brace_thresh >= 1:
+			# 	if open_curly_brace <= open_curly_brace_thresh:
+			# 		open_curly_brace_thresh = 0
+			# 		sub_funk_line = -1
+			# 		current_funk = old_funk
+			# 	else:
+			# 		sub_funk_line += 1
+
 			if is_function:
-				#print("\n{ (| %s\n- -" % is_function)
+				# Attempting to define sub functions for the purposes of properly
+				# attributing called functions. 
+				# if open_curly_brace - brace_update[0] >= 1:
+				# 	old_funk = is_function
+				# 	open_curly_brace_thresh = open_curly_brace
+				# 	sub_funk_line += 1
+				print("\n{ ( | %s\n- -" % is_function)
 				current_funk = is_function
-			#print("%d %d| %s" % (open_curly_brace, open_parens, line))
-			called_funks = decompose_nesting(line)
-			if called_funks:
-				for funk in called_funks:
-					print("%s\t%s" % (current_funk, funk))
-			else:
-				continue
+
+			print("%d %d | %s" % (open_curly_brace, open_parens, line))
+			#called_funks = decompose_nesting(line)
+			#if called_funks:
+			#	for funk in called_funks:
+			#		print("%s\t%s" % (current_funk, funk))
+			#else:
+			#	continue
 
 	os.chdir(starting_directory)
 
